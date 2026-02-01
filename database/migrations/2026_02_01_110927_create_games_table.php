@@ -6,20 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('games', function (Blueprint $table) {
             $table->id();
+            $table->string('room_code', 8)->unique();           // e.g. ABC123DE – short & unique
+            $table->json('board')->default(json_encode([
+                ['', '', ''], ['', '', ''], ['', '', '']
+            ]));  // 3x3 array, '' = empty, 'X' or 'O'
+            $table->string('current_turn')->default('X');       // 'X' or 'O'
+            $table->string('status')->default('waiting');       // waiting | playing | finished
+            $table->string('winner')->nullable();               // 'X' | 'O' | 'draw' | null
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('games');
