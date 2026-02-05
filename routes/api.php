@@ -20,5 +20,7 @@ Route::middleware('api')->group(function () {
     Route::post('/games', [GameController::class, 'store']);
     
     Route::post('/games/join', [GameController::class, 'join']);
-    // Route::get('/games/{room_code}', [GameController::class, 'show']);
+    // Get game state endpoint
+    Route::get('/games/{room_code}', [GameController::class, 'show']);
+    
 });

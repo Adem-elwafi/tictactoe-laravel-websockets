@@ -17,7 +17,7 @@ class GameController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(Request $request) : \Illuminate\http\JsonResponse 
     {
         // For anonymous play, we need to generate or use a session_id
         // If not provided in request, use Laravel's session ID
@@ -92,7 +92,7 @@ class GameController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function join(Request $request)
+    public function join(Request $request) : \Illuminate\http\JsonResponse 
     {
         // Validate the request
         $validated = $request->validate([
@@ -200,6 +200,78 @@ class GameController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to join game',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+        /**
+     * Get current game state
+     *
+     * @param  string  $room_code
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show(string $room_code): \Illuminate\http\JsonResponse
+    {
+        try {
+            // Find the game by room code with its players
+            $game = Game::where('room_code', $room_code)
+                ->with('players') // Eager load players
+                ->first();
+
+            if (!$game) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Game not found. Check the room code.'
+                ], 404);
+            }
+
+            // Format the players data
+            $players = $game->players->map(function ($player) {
+                return [
+                    'session_id' => $player->session_id,
+                    'symbol' => $player->symbol,
+                    'is_host' => $player->is_host,
+                    'joined_at' => $player->created_at,
+                ];
+            });
+
+            // Calculate game statistics
+            $playerCount = $game->players->count();
+            $isWaiting = $game->status === 'waiting';
+            $isPlaying = $game->status === 'playing';
+            $isFinished = $game->status === 'finished';
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Game state retrieved successfully',
+                'data' => [
+                    'room_code' => $game->room_code,
+                    'game' => [
+                        'id' => $game->id,
+                        'board' => $game->board,
+                        'current_turn' => $game->current_turn,
+                        'status' => $game->status,
+                        'winner' => $game->winner,
+                        'created_at' => $game->created_at,
+                        'updated_at' => $game->updated_at,
+                    ],
+                    'players' => $players,
+                    'statistics' => [
+                        'player_count' => $playerCount,
+                        'is_waiting' => $isWaiting,
+                        'is_playing' => $isPlaying,
+                        'is_finished' => $isFinished,
+                        'can_join' => $isWaiting && $playerCount < 2,
+                        'is_full' => $playerCount >= 2,
+                    ]
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve game state',
                 'error' => $e->getMessage()
             ], 500);
         }
