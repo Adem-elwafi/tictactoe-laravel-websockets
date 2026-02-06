@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class Game extends Model
+class Game extends Model //automatically  looks for games  table (plural,lowercase)
 {
     use HasFactory;
 
