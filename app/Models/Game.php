@@ -32,4 +32,23 @@ class Game extends Model //automatically  looks for games  table (plural,lowerca
 
         return $code;
     }
+    public function toBroadcastArray(): array
+    {
+        // Make sure players are loaded (no DB write, just safety)
+        $this->loadMissing('players');
+
+        return [
+            'id' => $this->id,
+            'room_code' => $this->room_code,
+            'board' => $this->board,
+            'current_turn' => $this->current_turn,
+            'status' => $this->status,
+            'winner' => $this->winner,
+            'players' => $this->players->map(fn ($player) => [
+                'session_id' => $player->session_id,
+                'symbol' => $player->symbol,
+                'is_host' => $player->is_host,
+            ])->values(),
+        ];
+    }
 }

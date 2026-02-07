@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use App\Events\GameUpdated;
 
 class GameController extends Controller
 {
@@ -164,6 +165,8 @@ class GameController extends Controller
 
             // Refresh the game with players relationship
             $game->load('players');
+            
+            event(new GameUpdated($game->fresh('players')));
 
             DB::commit();
 

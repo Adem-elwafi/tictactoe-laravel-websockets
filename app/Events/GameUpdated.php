@@ -45,20 +45,7 @@ class GameUpdated implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
-        // Customize exactly what the client needs
-        return [
-            'id' => $this->game->id,
-            'room_code' => $this->game->room_code,
-            'board' => $this->game->board,
-            'current_turn' => $this->game->current_turn,
-            'status' => $this->game->status,
-            'winner' => $this->game->winner,
-            // optionally include players
-            'players' => $this->game->players->map(fn($p) => [
-                'session_id' => $p->session_id,
-                'symbol' => $p->symbol,
-                'is_host' => $p->is_host,
-            ]),
-        ];
+        return $this->game->toBroadcastArray();
     }
+
 }
