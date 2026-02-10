@@ -5,6 +5,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Events\TestEvent;
+use App\Http\Controllers\Api\GameController;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -28,5 +30,16 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+//Open the live game page 
+Route::middleware(['auth'])->get(
+    '/games/room/{room_code}',
+    [GameController::class, 'room']
+)->name('games.room');
+
+
+Route::get('/games/{room_code}', [GameController::class, 'room'])
+    ->name('games.room');
+
 
 require __DIR__.'/auth.php';

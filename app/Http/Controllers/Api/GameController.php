@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use App\Events\GameUpdated;
+use Inertia\Inertia;
 
 class GameController extends Controller
 {
@@ -165,8 +166,8 @@ class GameController extends Controller
 
             // Refresh the game with players relationship
             $game->load('players');
-            
-            event(new GameUpdated($game->fresh('players')));
+
+            event(args: new GameUpdated($game->fresh('players')));
 
             DB::commit();
 
@@ -279,4 +280,15 @@ class GameController extends Controller
             ], 500);
         }
     }
+    public function room(string $room_code)
+{
+    $game = Game::where('room_code', $room_code)
+        ->with('players.user')
+        ->firstOrFail();
+
+    return Inertia::render('Game', [
+        'room_code' => $game->room_code,
+        'initialGame' => $game->toBroadcastArray(),
+    ]);
+}
 }

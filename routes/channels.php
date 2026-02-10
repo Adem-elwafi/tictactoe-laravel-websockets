@@ -18,4 +18,5 @@ Broadcast::channel('game.{room_code}', function ($user = null, string $room_code
     // $user is null because we are using session-based / anonymous auth.
     return Game::where('room_code', $room_code)->exists();
     
+    
 });
