@@ -10,7 +10,7 @@ export default function Game({ room_code, initialGame }) {
         console.log("Room code:", room_code);
         console.log("Initial game state:", initialGame);
 
-        const channelName = `private-game.${room_code}`;
+        const channelName = `game.${room_code}`;
 
         console.log("Listening on channel:", channelName);
 
