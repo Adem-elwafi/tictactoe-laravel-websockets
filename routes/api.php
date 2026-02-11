@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\GameController;
-
+use inertia\Inertia;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\GameController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::middleware('auth:sanctum')->post('/games/join', [GameController::class, 'join']);
 
 Route::middleware('api')->group(function () {
     // Game creation endpoint
@@ -24,3 +25,8 @@ Route::middleware('api')->group(function () {
     Route::get('/games/{room_code}', [GameController::class, 'show']);
     
 });
+
+// Show the join form
+Route::get('/games/join', function () {
+    return Inertia::render('JoinGame');
+})->middleware('auth');

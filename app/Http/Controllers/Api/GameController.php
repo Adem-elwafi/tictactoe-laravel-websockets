@@ -98,7 +98,7 @@ class GameController extends Controller
     {
         // Validate the request
         $validated = $request->validate([
-            'room_code' => 'required|string|size:6|uppercase',
+            'room_code' => 'required|string|size:7|uppercase',
             'session_id' => 'required|string|max:255',
         ]);
 
@@ -167,7 +167,7 @@ class GameController extends Controller
             // Refresh the game with players relationship
             $game->load('players');
 
-            event(args: new GameUpdated($game->fresh('players')));
+            event( new GameUpdated($game->fresh('players')));
 
             DB::commit();
 
@@ -283,7 +283,7 @@ class GameController extends Controller
     public function room(string $room_code)
 {
     $game = Game::where('room_code', $room_code)
-        ->with('players.user')
+        ->with('players')
         ->firstOrFail();
 
     return Inertia::render('Game', [
