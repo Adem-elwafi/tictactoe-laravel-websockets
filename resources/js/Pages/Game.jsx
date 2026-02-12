@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export default function Game({ room_code, initialGame }) {
     const [game, setGame] = useState(initialGame);
     const [message, setMessage] = useState('');
-    const [connectionStatus, setConnectionStatus] = useState('connecting'); // 'connecting', 'connected', 'disconnected'
+    const [connectionStatus, setConnectionStatus] = useState('connecting');
+    const [reconnectAttempt, setReconnectAttempt] = useState(0);
+    
+    // Use refs to prevent stale closures in timeouts
+    const reconnectTimeoutRef = useRef(null);
+    const maxReconnectAttempts = 5;
 
     useEffect(() => {
         if (!window.Echo) {
             console.error("Echo not found");
-            setConnectionStatus('disconnected');
+            setConnectionStatus('failed');
             return;
         }
 
@@ -37,49 +42,134 @@ export default function Game({ room_code, initialGame }) {
                 setConnectionStatus('disconnected');
             });
 
-        // Listen for Echo connection events
-        window.Echo.connector.pusher.connection.bind('connected', () => {
+        // Handle connection events with auto-reconnect
+        const handleConnected = () => {
             console.log('Echo connected');
             setConnectionStatus('connected');
-        });
+            setReconnectAttempt(0); // Reset attempt counter on success
+            
+            // Clear any pending reconnect timeout
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+        };
 
-        window.Echo.connector.pusher.connection.bind('disconnected', () => {
+        const handleDisconnected = () => {
             console.log('Echo disconnected');
             setConnectionStatus('disconnected');
-        });
+            
+            // Start automatic reconnection
+            attemptReconnect(0);
+        };
 
-        window.Echo.connector.pusher.connection.bind('connecting', () => {
+        const handleConnecting = () => {
             console.log('Echo connecting...');
             setConnectionStatus('connecting');
-        });
+        };
+
+        // Automatic reconnection with exponential backoff
+        const attemptReconnect = (attempt) => {
+            if (attempt >= maxReconnectAttempts) {
+                console.log('Max reconnection attempts reached');
+                setConnectionStatus('failed');
+                return;
+            }
+
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+            const delay = Math.min(1000 * Math.pow(2, attempt), 16000);
+            
+            console.log(`Reconnecting in ${delay/1000}s (attempt ${attempt + 1}/${maxReconnectAttempts})`);
+            setReconnectAttempt(attempt + 1);
+            setConnectionStatus('reconnecting');
+
+            reconnectTimeoutRef.current = setTimeout(() => {
+                console.log(`Reconnect attempt ${attempt + 1}`);
+                
+                try {
+                    // Try to reconnect
+                    window.Echo.connector.pusher.connect();
+                } catch (error) {
+                    console.error('Reconnect failed:', error);
+                    attemptReconnect(attempt + 1);
+                }
+            }, delay);
+        };
+
+        // Bind connection events
+        window.Echo.connector.pusher.connection.bind('connected', handleConnected);
+        window.Echo.connector.pusher.connection.bind('disconnected', handleDisconnected);
+        window.Echo.connector.pusher.connection.bind('connecting', handleConnecting);
 
         // Set initial status based on current connection state
-        if (window.Echo.connector.pusher.connection.state === 'connected') {
+        const currentState = window.Echo.connector.pusher.connection.state;
+        if (currentState === 'connected') {
             setConnectionStatus('connected');
+        } else if (currentState === 'connecting') {
+            setConnectionStatus('connecting');
         }
 
         // Cleanup on unmount
         return () => {
+            // Clear reconnect timeout
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+
+            // Unbind connection events
+            window.Echo.connector.pusher.connection.unbind('connected', handleConnected);
+            window.Echo.connector.pusher.connection.unbind('disconnected', handleDisconnected);
+            window.Echo.connector.pusher.connection.unbind('connecting', handleConnecting);
+
+            // Leave channel
             window.Echo.leave(channelName);
             console.log("Unsubscribed from channel:", channelName);
         };
     }, [room_code, game.status]);
 
-    // Helper function to get status badge color
-    const getStatusColor = () => {
+    // Helper function to get status badge
+    const getStatusDisplay = () => {
         switch (connectionStatus) {
             case 'connected':
-                return { bg: '#d4edda', color: '#155724', text: '🟢 Connected' };
+                return { 
+                    bg: '#d4edda', 
+                    color: '#155724', 
+                    text: '🟢 Connected' 
+                };
             case 'connecting':
-                return { bg: '#fff3cd', color: '#856404', text: '🟡 Connecting...' };
+                return { 
+                    bg: '#fff3cd', 
+                    color: '#856404', 
+                    text: '🟡 Connecting...' 
+                };
+            case 'reconnecting':
+                return { 
+                    bg: '#fff3cd', 
+                    color: '#856404', 
+                    text: `🟡 Reconnecting... (${reconnectAttempt}/${maxReconnectAttempts})` 
+                };
             case 'disconnected':
-                return { bg: '#f8d7da', color: '#721c24', text: '🔴 Disconnected' };
+                return { 
+                    bg: '#f8d7da', 
+                    color: '#721c24', 
+                    text: '🔴 Disconnected' 
+                };
+            case 'failed':
+                return { 
+                    bg: '#f8d7da', 
+                    color: '#721c24', 
+                    text: '🔴 Connection Failed' 
+                };
             default:
-                return { bg: '#e2e3e5', color: '#383d41', text: '⚪ Unknown' };
+                return { 
+                    bg: '#e2e3e5', 
+                    color: '#383d41', 
+                    text: '⚪ Unknown' 
+                };
         }
     };
 
-    const statusStyle = getStatusColor();
+    const statusDisplay = getStatusDisplay();
 
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
@@ -94,13 +184,13 @@ export default function Game({ room_code, initialGame }) {
                 {/* Connection Status Badge */}
                 <div style={{
                     padding: '8px 16px',
-                    background: statusStyle.bg,
-                    color: statusStyle.color,
+                    background: statusDisplay.bg,
+                    color: statusDisplay.color,
                     borderRadius: '20px',
                     fontSize: '14px',
                     fontWeight: 'bold'
                 }}>
-                    {statusStyle.text}
+                    {statusDisplay.text}
                 </div>
             </div>
 
@@ -149,7 +239,55 @@ export default function Game({ room_code, initialGame }) {
                 )}
             </div>
 
-            {/* Warning if disconnected */}
+            {/* Warning if reconnecting */}
+            {connectionStatus === 'reconnecting' && (
+                <div style={{
+                    marginTop: '20px',
+                    padding: '15px',
+                    background: '#fff3cd',
+                    color: '#856404',
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '4px'
+                }}>
+                    <strong>🔄 Reconnecting...</strong>
+                    <p style={{ marginTop: '5px', marginBottom: 0 }}>
+                        Attempting to restore connection (attempt {reconnectAttempt}/{maxReconnectAttempts})
+                    </p>
+                </div>
+            )}
+
+            {/* Warning if connection failed permanently */}
+            {connectionStatus === 'failed' && (
+                <div style={{
+                    marginTop: '20px',
+                    padding: '15px',
+                    background: '#f8d7da',
+                    color: '#721c24',
+                    border: '1px solid #f5c6cb',
+                    borderRadius: '4px'
+                }}>
+                    <strong>⚠️ Connection Failed</strong>
+                    <p style={{ marginTop: '5px', marginBottom: '10px' }}>
+                        Could not reconnect after {maxReconnectAttempts} attempts. Real-time updates are paused.
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        🔄 Refresh Page
+                    </button>
+                </div>
+            )}
+
+            {/* Warning if simply disconnected (before retry starts) */}
             {connectionStatus === 'disconnected' && (
                 <div style={{
                     marginTop: '20px',
@@ -159,9 +297,9 @@ export default function Game({ room_code, initialGame }) {
                     border: '1px solid #f5c6cb',
                     borderRadius: '4px'
                 }}>
-                    <strong>⚠️ Connection lost</strong>
+                    <strong>⚠️ Connection Lost</strong>
                     <p style={{ marginTop: '5px', marginBottom: 0 }}>
-                        Real-time updates are paused. Refresh the page to reconnect.
+                        Attempting to reconnect automatically...
                     </p>
                 </div>
             )}
