@@ -1,19 +1,48 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 export default function Game({ room_code, initialGame }) {
     const [game, setGame] = useState(initialGame);
     const [message, setMessage] = useState('');
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const [reconnectAttempt, setReconnectAttempt] = useState(0);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     
-    // Use refs to prevent stale closures in timeouts
+    // Use refs to prevent stale closures
     const reconnectTimeoutRef = useRef(null);
+    const messageTimeoutRef = useRef(null);
+    const previousStatusRef = useRef(initialGame.status);
     const maxReconnectAttempts = 5;
+
+    // Debounced state update to prevent rapid re-renders
+    const updateGameState = useCallback((newGameData) => {
+        setGame(prevGame => {
+            // Only update if data actually changed
+            if (JSON.stringify(prevGame) === JSON.stringify(newGameData)) {
+                return prevGame;
+            }
+            return newGameData;
+        });
+    }, []);
+
+    // Show notification message with auto-clear
+    const showMessage = useCallback((text, duration = 3000) => {
+        // Clear existing timeout
+        if (messageTimeoutRef.current) {
+            clearTimeout(messageTimeoutRef.current);
+        }
+        
+        setMessage(text);
+        
+        messageTimeoutRef.current = setTimeout(() => {
+            setMessage('');
+        }, duration);
+    }, []);
 
     useEffect(() => {
         if (!window.Echo) {
             console.error("Echo not found");
             setConnectionStatus('failed');
+            setIsInitialLoad(false);
             return;
         }
 
@@ -28,45 +57,22 @@ export default function Game({ room_code, initialGame }) {
             .listen(".game.updated", (payload) => {
                 console.log("Game updated event received:", payload);
                 
-                // Update game state
-                setGame(payload);
-                
-                // Show message when opponent joins
-                if (payload.status === 'playing' && game.status === 'waiting') {
-                    setMessage('Opponent joined! Game starting...');
-                    setTimeout(() => setMessage(''), 3000);
+                // Check if opponent just joined (status changed from waiting to playing)
+                if (payload.status === 'playing' && previousStatusRef.current === 'waiting') {
+                    showMessage('Opponent joined! Game starting...');
                 }
+                
+                // Update ref for next comparison
+                previousStatusRef.current = payload.status;
+                
+                // Update game state (debounced)
+                updateGameState(payload);
             })
             .error((error) => {
                 console.error("Channel subscription error:", error);
                 setConnectionStatus('disconnected');
+                setIsInitialLoad(false);
             });
-
-        // Handle connection events with auto-reconnect
-        const handleConnected = () => {
-            console.log('Echo connected');
-            setConnectionStatus('connected');
-            setReconnectAttempt(0); // Reset attempt counter on success
-            
-            // Clear any pending reconnect timeout
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-                reconnectTimeoutRef.current = null;
-            }
-        };
-
-        const handleDisconnected = () => {
-            console.log('Echo disconnected');
-            setConnectionStatus('disconnected');
-            
-            // Start automatic reconnection
-            attemptReconnect(0);
-        };
-
-        const handleConnecting = () => {
-            console.log('Echo connecting...');
-            setConnectionStatus('connecting');
-        };
 
         // Automatic reconnection with exponential backoff
         const attemptReconnect = (attempt) => {
@@ -76,7 +82,6 @@ export default function Game({ room_code, initialGame }) {
                 return;
             }
 
-            // Exponential backoff: 1s, 2s, 4s, 8s, 16s
             const delay = Math.min(1000 * Math.pow(2, attempt), 16000);
             
             console.log(`Reconnecting in ${delay/1000}s (attempt ${attempt + 1}/${maxReconnectAttempts})`);
@@ -87,7 +92,6 @@ export default function Game({ room_code, initialGame }) {
                 console.log(`Reconnect attempt ${attempt + 1}`);
                 
                 try {
-                    // Try to reconnect
                     window.Echo.connector.pusher.connect();
                 } catch (error) {
                     console.error('Reconnect failed:', error);
@@ -96,25 +100,71 @@ export default function Game({ room_code, initialGame }) {
             }, delay);
         };
 
+        // Connection event handlers
+        const handleConnected = () => {
+            console.log('Echo connected');
+            setConnectionStatus('connected');
+            setReconnectAttempt(0);
+            setIsInitialLoad(false);
+            
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+        };
+
+        const handleDisconnected = () => {
+            console.log('Echo disconnected');
+            setConnectionStatus('disconnected');
+            setIsInitialLoad(false);
+            attemptReconnect(0);
+        };
+
+        const handleConnecting = () => {
+            console.log('Echo connecting...');
+            setConnectionStatus('connecting');
+        };
+
         // Bind connection events
         window.Echo.connector.pusher.connection.bind('connected', handleConnected);
         window.Echo.connector.pusher.connection.bind('disconnected', handleDisconnected);
         window.Echo.connector.pusher.connection.bind('connecting', handleConnecting);
 
-        // Set initial status based on current connection state
+        // Set initial status
         const currentState = window.Echo.connector.pusher.connection.state;
         if (currentState === 'connected') {
             setConnectionStatus('connected');
+            setIsInitialLoad(false);
         } else if (currentState === 'connecting') {
             setConnectionStatus('connecting');
         }
 
+        // Handle page visibility changes (user switches tabs)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // User came back to tab - check connection
+                const state = window.Echo.connector.pusher.connection.state;
+                if (state === 'disconnected' || state === 'unavailable') {
+                    console.log('Page visible again, reconnecting...');
+                    window.Echo.connector.pusher.connect();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         // Cleanup on unmount
         return () => {
-            // Clear reconnect timeout
+            // Clear all timeouts
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
             }
+            if (messageTimeoutRef.current) {
+                clearTimeout(messageTimeoutRef.current);
+            }
+
+            // Remove visibility listener
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
 
             // Unbind connection events
             window.Echo.connector.pusher.connection.unbind('connected', handleConnected);
@@ -125,7 +175,7 @@ export default function Game({ room_code, initialGame }) {
             window.Echo.leave(channelName);
             console.log("Unsubscribed from channel:", channelName);
         };
-    }, [room_code, game.status]);
+    }, [room_code, updateGameState, showMessage]); // Fixed: removed game.status from dependencies
 
     // Helper function to get status badge
     const getStatusDisplay = () => {
@@ -171,6 +221,59 @@ export default function Game({ room_code, initialGame }) {
 
     const statusDisplay = getStatusDisplay();
 
+    // Loading skeleton while initial connection establishes
+    if (isInitialLoad && connectionStatus === 'connecting') {
+        return (
+            <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: '20px'
+                }}>
+                    <h1 style={{ margin: 0 }}>Game Room</h1>
+                    <div style={{
+                        padding: '8px 16px',
+                        background: '#fff3cd',
+                        color: '#856404',
+                        borderRadius: '20px',
+                        fontSize: '14px',
+                        fontWeight: 'bold'
+                    }}>
+                        🟡 Connecting...
+                    </div>
+                </div>
+                
+                <div style={{
+                    padding: '20px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                }}>
+                    <div style={{
+                        width: '50px',
+                        height: '50px',
+                        border: '5px solid #e9ecef',
+                        borderTop: '5px solid #007bff',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto 20px'
+                    }}></div>
+                    <p style={{ color: '#6c757d', margin: 0 }}>
+                        Establishing connection to game room...
+                    </p>
+                </div>
+                
+                <style>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
             <div style={{ 
@@ -204,7 +307,8 @@ export default function Game({ room_code, initialGame }) {
                     color: '#155724',
                     border: '1px solid #c3e6cb',
                     borderRadius: '4px',
-                    marginBottom: '15px'
+                    marginBottom: '15px',
+                    animation: 'slideIn 0.3s ease-out'
                 }}>
                     {message}
                 </div>
@@ -287,7 +391,7 @@ export default function Game({ room_code, initialGame }) {
                 </div>
             )}
 
-            {/* Warning if simply disconnected (before retry starts) */}
+            {/* Warning if simply disconnected */}
             {connectionStatus === 'disconnected' && (
                 <div style={{
                     marginTop: '20px',
@@ -303,6 +407,19 @@ export default function Game({ room_code, initialGame }) {
                     </p>
                 </div>
             )}
+
+            <style>{`
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `}</style>
         </div>
     );
 }
