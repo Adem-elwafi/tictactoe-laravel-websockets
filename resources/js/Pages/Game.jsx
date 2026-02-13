@@ -318,7 +318,19 @@ export default function Game({ room_code, initialGame }) {
             <div style={{ marginTop: '20px' }}>
                 <p><strong>Status:</strong> {game.status}</p>
                 <p><strong>Current turn:</strong> {game.current_turn}</p>
-                <p><strong>Board:</strong> {JSON.stringify(game.board)}</p>
+                {/* 3×3 Tic-Tac-Toe Board */}
+                <div className="grid grid-cols-3 gap-2 w-64 mx-auto">
+                    {game.board.map((cell, index) => (
+                        <button
+                            key={index}
+                            type="button"
+                            onClick={() => console.log('Cell clicked:', index)}
+                            className="w-20 h-20 border-2 border-gray-400 bg-white flex items-center justify-center text-3xl font-bold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        >
+                            {cell || '·'}
+                        </button>
+                    ))}
+                </div>
                 
                 {game.status === 'waiting' && (
                     <p style={{ 

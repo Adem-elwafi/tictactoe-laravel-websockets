@@ -44,5 +44,4 @@ Route::middleware(['auth'])->group(function () {
         ->name('games.room');
 });
 
-
 require __DIR__.'/auth.php';
