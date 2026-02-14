@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use App\Events\GameUpdated;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class GameController extends Controller
 {
@@ -280,6 +282,61 @@ class GameController extends Controller
             ], 500);
         }
     }
+public function move(Request $request, Game $game)
+{
+    $validated = $request->validate([
+        'position' => 'required|integer|min:0|max:8',
+    ]);
+
+    $position = $validated['position'];
+    
+    // Get current player from session (not user ID)
+    $sessionId = session()->getId();
+    
+    // Find this player in the game
+    $player = $game->players()->where('session_id', $sessionId)->first();
+    
+    if (!$player) {
+        return response()->json(['message' => 'You are not in this game'], 403);
+    }
+    
+    // Check if it's this player's turn
+    if ($game->current_turn !== $player->symbol) {
+        return response()->json(['message' => 'Not your turn'], 403);
+    }
+    
+    // Check if cell is empty
+    $board = $game->board;
+    
+    // Debug log
+    \Log::info('Board:', ['board' => $board, 'position' => $position, 'value' => $board[$position]]);
+    
+    if ($board[$position] !== '' && $board[$position] !== null) {
+        return response()->json(['message' => 'Cell already occupied'], 422);
+    }
+    
+    // Make the move
+    $board[$position] = $player->symbol;
+    $game->board = $board;
+    
+    // Switch turn
+    $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
+    
+    // Check if game is still waiting (should be playing now)
+    if ($game->status === 'waiting') {
+        $game->status = 'playing';
+    }
+    
+    $game->save();
+    
+    // Broadcast the update
+    broadcast(new \App\Events\GameUpdated($game))->toOthers();
+    
+    return response()->json([
+        'message' => 'Move made successfully',
+        'game' => $game->fresh()->load('players')
+    ]);
+}
     public function room(string $room_code)
 {
     $game = Game::where('room_code', $room_code)

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('room_code', 8)->unique();           // e.g. ABC123DE – short & unique
             $table->json('board')->default(json_encode([
-                ['', '', ''], ['', '', ''], ['', '', '']
+                '', '', '', '', '', '', '', '', ''
             ]));  // 3x3 array, '' = empty, 'X' or 'O'
             $table->string('current_turn')->default('X');       // 'X' or 'O'
             $table->string('status')->default('waiting');       // waiting | playing | finished

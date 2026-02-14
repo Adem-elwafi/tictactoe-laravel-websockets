@@ -24,6 +24,7 @@ Route::middleware('api')->group(function () {
     // Get game state endpoint
     Route::get('/games/{room_code}', [GameController::class, 'show']);
     
+    Route::post('/games/{game}/move', [GameController::class, 'move']);
 });
 
 // Show the join form

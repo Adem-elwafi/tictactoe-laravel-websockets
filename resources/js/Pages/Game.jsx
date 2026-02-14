@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import axios from 'axios'; 
 
 export default function Game({ room_code, initialGame }) {
     const [game, setGame] = useState(initialGame);
@@ -38,6 +39,26 @@ export default function Game({ room_code, initialGame }) {
         }, duration);
     }, []);
 
+    const handleCellClick = async (index) => {
+        console.log('Attempting move at position:', index);
+        
+        try {
+            const response = await axios.post(`/api/games/${game.id}/move`, {
+                position: index
+            });
+            
+            console.log('Move successful:', response.data);
+            // The Echo listener will update the board automatically
+            
+        } catch (error) {
+            console.error('Move failed:', error.response?.data || error.message);
+            
+            // Optional: show user-friendly error
+            if (error.response?.data?.message) {
+                alert(error.response.data.message);
+            }
+        }
+    };
     useEffect(() => {
         if (!window.Echo) {
             console.error("Echo not found");
@@ -324,7 +345,7 @@ export default function Game({ room_code, initialGame }) {
                         <button
                             key={index}
                             type="button"
-                            onClick={() => console.log('Cell clicked:', index)}
+                            onClick={() => handleCellClick(index)}
                             className="w-20 h-20 border-2 border-gray-400 bg-white flex items-center justify-center text-3xl font-bold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                         >
                             {cell || '·'}

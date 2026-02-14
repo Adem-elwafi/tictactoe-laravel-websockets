@@ -16,6 +16,8 @@ class Game extends Model //automatically  looks for games  table (plural,lowerca
 
     protected $casts = [
         'board' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function players()
