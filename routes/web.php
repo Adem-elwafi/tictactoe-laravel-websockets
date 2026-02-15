@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Events\TestEvent;
 use App\Http\Controllers\Api\GameController;
+use App\Models\Game; 
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -15,6 +16,31 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+//create game page route 
+Route::get('/create-game', function () {
+    return Inertia::render('CreateGame');
+})->name('game.create');
+//route  to the Game.jsx 
+Route::get('/game/{game}', function (Game $game) {
+    $game->load('players');
+    
+    return Inertia::render('Game', [
+        'room_code' => $game->room_code,  // ← Separate prop
+        'initialGame' => [
+            'id' => $game->id,
+            'room_code' => $game->room_code,  // Also include in game object
+            'board' => $game->board,
+            'current_turn' => $game->current_turn,
+            'status' => $game->status,
+            'winner' => $game->winner,
+            'players' => $game->players->map(fn($p) => [
+                'session_id' => $p->session_id,
+                'symbol' => $p->symbol,
+                'is_host' => $p->is_host,
+            ])->toArray(),
+        ]
+    ]);
+})->name('game.show');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
