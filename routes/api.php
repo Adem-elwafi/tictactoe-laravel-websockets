@@ -14,16 +14,17 @@ use inertia\Inertia;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-Route::middleware('auth:sanctum')->post('/games/join', [GameController::class, 'join']);
-
-Route::middleware('api')->group(function () {
+Route::middleware('web')->group(function () {
     // Game creation endpoint
     Route::post('/games', [GameController::class, 'store']);
     
+    // Join game endpoint
     Route::post('/games/join', [GameController::class, 'join']);
+    
     // Get game state endpoint
     Route::get('/games/{room_code}', [GameController::class, 'show']);
     
+    // Make move endpoint
     Route::post('/games/{game}/move', [GameController::class, 'move']);
 });
 

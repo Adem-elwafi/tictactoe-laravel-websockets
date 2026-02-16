@@ -1,20 +1,11 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
+import axios from 'axios';
 
 export default function JoinGame({ auth }) {
     const [roomCode, setRoomCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-
-    // Generate or get session_id from localStorage
-    const getSessionId = () => {
-        let sessionId = localStorage.getItem('game_session_id');
-        if (!sessionId) {
-            sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('game_session_id', sessionId);
-        }
-        return sessionId;
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,31 +13,26 @@ export default function JoinGame({ auth }) {
         setLoading(true);
 
         try {
-            const response = await fetch('/api/games/join', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-
-                },
-                credentials: 'same-origin', 
-                body: JSON.stringify({
-                    room_code: roomCode.toUpperCase(),
-                    session_id: getSessionId(),
-                }),
+            const response = await axios.post('/api/games/join', {
+                room_code: roomCode.toUpperCase(),
             });
 
-            const data = await response.json();
+            console.log('✅ Join successful:', response.data);
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to join game');
+            // Check if successful
+            if (response.data.success) {
+                const gameId = response.data.data.game.id;
+                
+                // Redirect to game page using Inertia
+                router.visit(`/game/${gameId}`);
+            } else {
+                setError(response.data.message || 'Failed to join game');
+                setLoading(false);
             }
 
-            // Success! Redirect to game room using Inertia
-            router.visit(`/games/room/${data.data.room_code}`);
-
         } catch (err) {
-            setError(err.message);
+            console.error('❌ Join failed:', err.response?.data || err.message);
+            setError(err.response?.data?.message || 'Failed to join game. Please try again.');
             setLoading(false);
         }
     };
@@ -72,7 +58,7 @@ export default function JoinGame({ auth }) {
                         type="text"
                         value={roomCode}
                         onChange={e => setRoomCode(e.target.value.toUpperCase())}
-                        placeholder="Enter room code (e.g., TEST456)"
+                        placeholder="Enter room code (e.g., FRESH1)"
                         style={{
                             width: '100%',
                             padding: '10px',
@@ -81,7 +67,7 @@ export default function JoinGame({ auth }) {
                             borderRadius: '4px',
                             textTransform: 'uppercase'
                         }}
-                        maxLength={7}
+                        maxLength={8}
                         required
                         disabled={loading}
                     />
@@ -103,7 +89,7 @@ export default function JoinGame({ auth }) {
 
                 <button
                     type="submit"
-                    disabled={loading || roomCode.length !== 7}
+                    disabled={loading || roomCode.length < 6}
                     style={{
                         width: '100%',
                         padding: '12px',
@@ -128,6 +114,9 @@ export default function JoinGame({ auth }) {
             }}>
                 <p style={{ margin: 0, fontSize: '14px', color: '#6c757d' }}>
                     💡 Ask the host for their room code to join the game
+                </p>
+                <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
+                    Test codes: FRESH1, MIDGM2, WAIT55
                 </p>
             </div>
         </div>

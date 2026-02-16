@@ -13,6 +13,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Events\GameStarted;
+use Psr\Log\LoggerInterface;
 class GameController extends Controller
 {
     /**
@@ -35,7 +36,10 @@ public function store(Request $request): \Illuminate\Http\JsonResponse
         }
         $sessionId = session()->getId();
         
-        \Log::info('Creating game with session', ['session_id' => $sessionId]);
+        Log::info('Creating game', [
+            'session_id' => $sessionId,
+            'room_code' => $roomCode,
+        ]);
         
         // Create the game
         $game = Game::create([
@@ -59,6 +63,11 @@ public function store(Request $request): \Illuminate\Http\JsonResponse
         // Broadcast game started
         broadcast(new GameStarted($game))->toOthers();
         
+        Log::info('Game created successfully', [
+            'game_id' => $game->id,
+            'player_session' => $player->session_id,
+            'are_they_equal' => $sessionId === $player->session_id,
+        ]);
         DB::commit();
         
         return response()->json([
@@ -83,7 +92,7 @@ public function store(Request $request): \Illuminate\Http\JsonResponse
     } catch (\Exception $e) {
         DB::rollBack();
         
-        \Log::error('Failed to create game: ' . $e->getMessage());
+        Log::error('Failed to create game: ' . $e->getMessage());
         
         return response()->json([
             'success' => false,
@@ -305,51 +314,32 @@ public function move(Request $request, Game $game)
 
     $position = $validated['position'];
     
-    // Get current player from session (not user ID)
+    // Get current session
     $sessionId = session()->getId();
+    
+    // DEBUG: Log what we're comparing
+    Log::info('Move attempt', [
+        'game_id' => $game->id,
+        'current_session' => $sessionId,
+        'players_in_game' => $game->players->map(fn($p) => [
+            'session_id' => $p->session_id,
+            'symbol' => $p->symbol,
+        ])->toArray(),
+    ]);
     
     // Find this player in the game
     $player = $game->players()->where('session_id', $sessionId)->first();
     
     if (!$player) {
+        Log::error('Player not found in game', [
+            'looking_for_session' => $sessionId,
+            'game_has_sessions' => $game->players->pluck('session_id')->toArray(),
+        ]);
+        
         return response()->json(['message' => 'You are not in this game'], 403);
     }
     
-    // Check if it's this player's turn
-    if ($game->current_turn !== $player->symbol) {
-        return response()->json(['message' => 'Not your turn'], 403);
-    }
-    
-    // Check if cell is empty
-    $board = $game->board;
-    
-    // Debug log
-    
-    if ($board[$position] !== '' && $board[$position] !== null) {
-        return response()->json(['message' => 'Cell already occupied'], 422);
-    }
-    
-    // Make the move
-    $board[$position] = $player->symbol;
-    $game->board = $board;
-    
-    // Switch turn
-    $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
-    
-    // Check if game is still waiting (should be playing now)
-    if ($game->status === 'waiting') {
-        $game->status = 'playing';
-    }
-    
-    $game->save();
-    
-    // Broadcast the update
-    broadcast(new \App\Events\GameUpdated($game))->toOthers();
-    
-    return response()->json([
-        'message' => 'Move made successfully',
-        'game' => $game->fresh()->load('players')
-    ]);
+    // ... rest of your code
 }
     public function room(string $room_code)
 {
