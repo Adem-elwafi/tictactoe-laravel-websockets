@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use App\Events\GameUpdated;
+use App\Events\PlayerJoined;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -190,8 +191,11 @@ public function store(Request $request): \Illuminate\Http\JsonResponse
             // Refresh the game with players relationship
             $game->load('players');
 
-            // Broadcast (fixed the syntax)
-            broadcast(new GameUpdated($game))->toOthers();
+            // Broadcast to all players that the game has been updated
+            broadcast(new GameUpdated($game));
+            
+            // Also broadcast the PlayerJoined event
+            broadcast(new PlayerJoined($game));
 
             DB::commit();
 
@@ -202,30 +206,31 @@ public function store(Request $request): \Illuminate\Http\JsonResponse
                     'room_code' => $game->room_code,
                     'game' => [
                         'id' => $game->id,
+                        'room_code' => $game->room_code,
                         'board' => $game->board,
                         'current_turn' => $game->current_turn,
                         'status' => $game->status,
                         'winner' => $game->winner,
+                        'players' => $game->players->map(function ($player) {
+                            return [
+                                'session_id' => $player->session_id,
+                                'symbol' => $player->symbol,
+                                'is_host' => $player->is_host,
+                            ];
+                        })->toArray(),
                     ],
                     'player' => [
                         'session_id' => $player->session_id,
                         'symbol' => $player->symbol,
                         'is_host' => $player->is_host,
                     ],
-                    'players' => $game->players->map(function ($player) {
-                        return [
-                            'session_id' => $player->session_id,
-                            'symbol' => $player->symbol,
-                            'is_host' => $player->is_host,
-                        ];
-                    })
                 ]
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
             
-            \Log::error('Join game error: ' . $e->getMessage());
+            Log::error('Join game error: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -338,17 +343,100 @@ public function move(Request $request, Game $game)
         
         return response()->json(['message' => 'You are not in this game'], 403);
     }
+
+    // Check if game is in a playable state
+    if ($game->status !== 'playing') {
+        return response()->json([
+            'message' => 'Game is not active. Status: ' . $game->status
+        ], 422);
+    }
+
+    // Check if it's this player's turn
+    if ($game->current_turn !== $player->symbol) {
+        return response()->json([
+            'message' => 'Not your turn. Waiting for ' . $game->current_turn
+        ], 422);
+    }
+
+    // Get the board
+    $board = $game->board;
+
+    // ← FIX for Bug 4: Check if cell is empty (handle both null and '')
+    if ($board[$position] !== '' && $board[$position] !== null) {
+        return response()->json([
+            'message' => 'Cell already occupied'
+        ], 422);
+    }
+
+    // Make the move
+    $board[$position] = $player->symbol;
     
-    // ... rest of your code
+    // ← FIX for Bug 4: Normalize board to use '' instead of null
+    $board = array_map(fn($cell) => $cell ?? '', $board);
+    
+    $game->board = $board;
+
+    // Switch turn to the other player
+    $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
+
+    $game->save();
+
+    Log::info('Move successful', [
+        'game_id' => $game->id,
+        'position' => $position,
+        'symbol' => $player->symbol,
+        'next_turn' => $game->current_turn,
+        'board' => $board,
+    ]);
+
+    // Broadcast the update to other players
+    broadcast(new GameUpdated($game->fresh()->load('players')))->toOthers();
+
+    // ← FIX for Bug 3: Return full game object with players in API response
+    $game->fresh()->load('players');
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Move made successfully',
+        'data' => [
+            'game' => [
+                'id' => $game->id,
+                'room_code' => $game->room_code,
+                'board' => $game->board,
+                'current_turn' => $game->current_turn,
+                'status' => $game->status,
+                'winner' => $game->winner,
+                'players' => $game->players->map(function ($player) {
+                    return [
+                        'session_id' => $player->session_id,
+                        'symbol' => $player->symbol,
+                        'is_host' => $player->is_host,
+                    ];
+                })->toArray(),
+            ],
+            'move' => [
+                'position' => $position,
+                'symbol' => $player->symbol,
+            ]
+        ]
+    ]);
 }
     public function room(string $room_code)
 {
     $game = Game::where('room_code', $room_code)
         ->with('players')
         ->firstOrFail();
+    
+    // Get the current session ID to identify which player this is
+    $sessionId = session()->getId();
+    
+    // Find which player this session belongs to
+    $myPlayer = $game->players->where('session_id', $sessionId)->first();
+    $mySymbol = $myPlayer ? $myPlayer->symbol : null;
 
     return Inertia::render('Game', [
         'room_code' => $game->room_code,
+        'mySymbol' => $mySymbol,  // ← NEW: Pass player's symbol based on session
         'initialGame' => $game->toBroadcastArray(),
     ]);
 }
