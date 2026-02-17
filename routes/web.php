@@ -24,8 +24,16 @@ Route::get('/create-game', function () {
 Route::get('/game/{game}', function (Game $game) {
     $game->load('players');
     
+    // Get the current session ID to identify which player this is
+    $sessionId = session()->getId();
+    
+    // Find which player this session belongs to
+    $myPlayer = $game->players->where('session_id', $sessionId)->first();
+    $mySymbol = $myPlayer ? $myPlayer->symbol : null;
+    
     return Inertia::render('Game', [
         'room_code' => $game->room_code,  // ← Separate prop
+        'mySymbol' => $mySymbol,  // ← NEW: Pass player's symbol based on session
         'initialGame' => [
             'id' => $game->id,
             'room_code' => $game->room_code,  // Also include in game object
