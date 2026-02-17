@@ -4,7 +4,6 @@ namespace App\Events;
 
 use App\Models\Game;
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -28,8 +27,8 @@ class GameUpdated implements ShouldBroadcast
      */
     public function broadcastOn(): Channel
     {
-        // Private channel per game
-        return new PrivateChannel('game.' . $this->game->room_code);
+        // PUBLIC channel using game ID (matches Game.jsx: game.${game.id})
+        return new Channel('game.' . $this->game->id);
     }
 
     /**
@@ -37,7 +36,8 @@ class GameUpdated implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'game.updated';
+        // Event name WITHOUT dots - matches Game.jsx listener: .listen('GameUpdated')
+        return 'GameUpdated';
     }
 
     /**
@@ -45,7 +45,8 @@ class GameUpdated implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
-        return $this->game->toBroadcastArray();
+        return [
+            'game' => $this->game->toBroadcastArray(),
+        ];
     }
-
 }
