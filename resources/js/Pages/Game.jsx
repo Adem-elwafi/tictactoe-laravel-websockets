@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import axios from 'axios'; 
 
-export default function Game({ room_code, initialGame }) {
+export default function Game({ room_code, initialGame, mySymbol }) {
     const [game, setGame] = useState(initialGame);
     const [message, setMessage] = useState('');
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const [reconnectAttempt, setReconnectAttempt] = useState(0);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     
     // Use refs to prevent stale closures
     const reconnectTimeoutRef = useRef(null);
@@ -42,13 +43,22 @@ export default function Game({ room_code, initialGame }) {
     const handleCellClick = async (index) => {
         console.log('Attempting move at position:', index);
         
+        if (!canPlay()) return;
+        if (game.board[index] !== '' && game.board[index] !== null) return;
+        
+        setIsLoading(true);
+        
         try {
             const response = await axios.post(`/api/games/${game.id}/move`, {
                 position: index
             });
             
             console.log('Move successful:', response.data);
-            // The Echo listener will update the board automatically
+            
+            // ← FIX for Bug 3: Update state immediately from API response
+            if (response.data.success && response.data.data.game) {
+                updateGameState(response.data.data.game);
+            }
             
         } catch (error) {
             console.error('Move failed:', error.response?.data || error.message);
@@ -57,40 +67,65 @@ export default function Game({ room_code, initialGame }) {
             if (error.response?.data?.message) {
                 alert(error.response.data.message);
             }
+        } finally {
+            setIsLoading(false);
         }
     };
+
+    // ← FIX for Bug 2: Remove getMySymbol() and use mySymbol prop directly
+
+// ← FIX for Bug 2: Check if it's your turn using mySymbol prop
+const isMyTurn = () => {
+    return game.current_turn === mySymbol;
+};
+
+// ← FIX for Bug 2 & 4: Check if game is playable
+const canPlay = () => {
+    return game.status === 'playing' && isMyTurn() && !isLoading;
+};
     useEffect(() => {
         if (!window.Echo) {
-            console.error("Echo not found");
+            console.error("❌ Echo not found");
             setConnectionStatus('failed');
             setIsInitialLoad(false);
             return;
         }
 
-        console.log("Room code:", room_code);
         console.log("Initial game state:", initialGame);
+        console.log("My symbol:", mySymbol);
 
-        const channelName = `game.${room_code}`;
-        console.log("Subscribing to channel:", channelName);
+        const channelName = `game.${game.id}`;
+        console.log("📡 Subscribing to channel:", channelName);
 
-        // Subscribe to the private channel
-        const channel = window.Echo.private(channelName)
-            .listen(".game.updated", (payload) => {
-                console.log("Game updated event received:", payload);
+        // Subscribe to the PUBLIC channel (not private)
+        const channel = window.Echo.channel(channelName)
+            .subscribed(() => {
+                console.log('✅ Successfully subscribed to', channelName);
+            })
+            .listen('GameUpdated', (data) => {
+                console.log('GameUpdated event received:', data);
+                const gameData = data.game || data;
+                console.log('Extracted game data:', gameData);
                 
                 // Check if opponent just joined (status changed from waiting to playing)
-                if (payload.status === 'playing' && previousStatusRef.current === 'waiting') {
+                if (gameData.status === 'playing' && previousStatusRef.current === 'waiting') {
                     showMessage('Opponent joined! Game starting...');
                 }
                 
                 // Update ref for next comparison
-                previousStatusRef.current = payload.status;
+                previousStatusRef.current = gameData.status;
                 
-                // Update game state (debounced)
-                updateGameState(payload);
+                // Update game state
+                updateGameState(gameData);
+            })
+            .listen('PlayerJoined', (data) => {
+                console.log('PlayerJoined event received:', data);
+                const gameData = data.game || data;
+                console.log('Extracted game data from PlayerJoined:', gameData);
+                updateGameState(gameData);
             })
             .error((error) => {
-                console.error("Channel subscription error:", error);
+                console.error("❌ Channel subscription error:", error);
                 setConnectionStatus('disconnected');
                 setIsInitialLoad(false);
             });
@@ -105,12 +140,12 @@ export default function Game({ room_code, initialGame }) {
 
             const delay = Math.min(1000 * Math.pow(2, attempt), 16000);
             
-            console.log(`Reconnecting in ${delay/1000}s (attempt ${attempt + 1}/${maxReconnectAttempts})`);
+            console.log(`🔄 Reconnecting in ${delay/1000}s (attempt ${attempt + 1}/${maxReconnectAttempts})`);
             setReconnectAttempt(attempt + 1);
             setConnectionStatus('reconnecting');
 
             reconnectTimeoutRef.current = setTimeout(() => {
-                console.log(`Reconnect attempt ${attempt + 1}`);
+                console.log(`🔄 Reconnect attempt ${attempt + 1}`);
                 
                 try {
                     window.Echo.connector.pusher.connect();
@@ -123,7 +158,7 @@ export default function Game({ room_code, initialGame }) {
 
         // Connection event handlers
         const handleConnected = () => {
-            console.log('Echo connected');
+            console.log('✅ Echo connected');
             setConnectionStatus('connected');
             setReconnectAttempt(0);
             setIsInitialLoad(false);
@@ -135,14 +170,14 @@ export default function Game({ room_code, initialGame }) {
         };
 
         const handleDisconnected = () => {
-            console.log('Echo disconnected');
+            console.log('🔴 Echo disconnected');
             setConnectionStatus('disconnected');
             setIsInitialLoad(false);
             attemptReconnect(0);
         };
 
         const handleConnecting = () => {
-            console.log('Echo connecting...');
+            console.log('🟡 Echo connecting...');
             setConnectionStatus('connecting');
         };
 
@@ -192,11 +227,13 @@ export default function Game({ room_code, initialGame }) {
             window.Echo.connector.pusher.connection.unbind('disconnected', handleDisconnected);
             window.Echo.connector.pusher.connection.unbind('connecting', handleConnecting);
 
-            // Leave channel
+            // Stop listening and leave channel
+            channel.stopListening('GameUpdated');
+            channel.stopListening('PlayerJoined');
             window.Echo.leave(channelName);
-            console.log("Unsubscribed from channel:", channelName);
+            console.log("📡 Leaving channel:", channelName);
         };
-    }, [room_code, updateGameState, showMessage]); // Fixed: removed game.status from dependencies
+    }, [game.id, updateGameState, showMessage]); // Changed: use game.id instead of room_code
 
     // Helper function to get status badge
     const getStatusDisplay = () => {
@@ -318,7 +355,6 @@ export default function Game({ room_code, initialGame }) {
                 </div>
             </div>
 
-            <p><strong>Room code:</strong> {room_code}</p>
             
             {/* Notification message */}
             {message && (
@@ -334,36 +370,72 @@ export default function Game({ room_code, initialGame }) {
                     {message}
                 </div>
             )}
+            {/* Status Section */}
+        <div className="mb-6 text-center">
+            <div className="bg-gray-100 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600 mb-1">Room Code</p>
+                <p className="text-2xl font-bold text-gray-800">{room_code}</p>
+            </div>
             
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600 mb-1">You are</p>
+                <p className="text-3xl font-bold text-blue-600">{mySymbol || 'N/A'}</p>
+            </div>
+            
+            {game.status === 'waiting' && (
+                <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                    <p className="text-yellow-800 font-semibold">
+                        ⏳ Waiting for opponent...
+                    </p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                        Share room code: <span className="font-mono font-bold">{room_code}</span>
+                    </p>
+                </div>
+            )}
+            
+            {game.status === 'playing' && (
+                <div className={`rounded-lg p-4 border-2 ${
+                    isMyTurn() 
+                        ? 'bg-green-50 border-green-400' 
+                        : 'bg-gray-50 border-gray-300'
+                }`}>
+                    <p className={`font-bold text-lg ${
+                        isMyTurn() ? 'text-green-700' : 'text-gray-600'
+                    }`}>
+                        {isMyTurn() ? '✨ YOUR TURN' : '⏳ Opponent\'s turn'}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                        Current turn: <span className="font-bold">{game.current_turn}</span>
+                    </p>
+                </div>
+            )}
+        </div>
             {/* Game state display */}
             <div style={{ marginTop: '20px' }}>
-                <p><strong>Status:</strong> {game.status}</p>
-                <p><strong>Current turn:</strong> {game.current_turn}</p>
                 {/* 3×3 Tic-Tac-Toe Board */}
-                <div className="grid grid-cols-3 gap-2 w-64 mx-auto">
-                    {game.board.map((cell, index) => (
-                        <button
-                            key={index}
-                            type="button"
-                            onClick={() => handleCellClick(index)}
-                            className="w-20 h-20 border-2 border-gray-400 bg-white flex items-center justify-center text-3xl font-bold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                        >
-                            {cell || '·'}
-                        </button>
-                    ))}
-                </div>
-                
-                {game.status === 'waiting' && (
-                    <p style={{ 
-                        color: '#856404', 
-                        background: '#fff3cd', 
-                        padding: '10px', 
-                        borderRadius: '4px' 
-                    }}>
-                        ⏳ Waiting for opponent to join...
-                    </p>
-                )}
-                
+            <div className="grid grid-cols-3 gap-2 w-64 mx-auto">
+                {game.board.map((cell, index) => (
+                    <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleCellClick(index)}
+                        disabled={!canPlay() || (cell !== '' && cell !== null)}
+                        className={`
+                            w-20 h-20 border-2 flex items-center justify-center 
+                            text-3xl font-bold transition-all
+                            ${canPlay() && (cell === '' || cell === null)
+                                ? 'border-gray-400 bg-white hover:bg-blue-50 hover:border-blue-400 cursor-pointer'
+                                : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                            }
+                            ${cell === 'X' ? 'text-blue-600' : ''}
+                            ${cell === 'O' ? 'text-red-600' : ''}
+                            focus:outline-none focus:ring-2 focus:ring-blue-500
+                        `}
+                    >
+                        {cell || ''}
+                    </button>
+                ))}
+            </div>
                 {game.status === 'playing' && (
                     <p style={{ 
                         color: '#004085', 
