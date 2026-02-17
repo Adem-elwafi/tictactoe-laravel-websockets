@@ -2,35 +2,51 @@
 
 namespace App\Events;
 
+use App\Models\Game;
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class GameStarted
+class GameStarted implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
+
+    public Game $game;
 
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(Game $game)
     {
-        //
+        $this->game = $game;
     }
 
     /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * The channel the event should broadcast on.
      */
-    public function broadcastOn(): array
+    public function broadcastOn(): Channel
+    {
+        // PUBLIC channel using game ID (matches Game.jsx: game.${game.id})
+        return new Channel('game.' . $this->game->id);
+    }
+
+    /**
+     * The event name on the client side.
+     */
+    public function broadcastAs(): string
+    {
+        // Event name WITHOUT dots - matches Game.jsx listener: .listen('GameStarted')
+        return 'GameStarted';
+    }
+
+    /**
+     * What data to broadcast.
+     */
+    public function broadcastWith(): array
     {
         return [
-            new PrivateChannel('channel-name'),
+            'game' => $this->game->toBroadcastArray(),
         ];
     }
 }
