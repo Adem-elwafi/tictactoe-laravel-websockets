@@ -36,7 +36,7 @@ class Game extends Model //automatically  looks for games  table (plural,lowerca
     }
     public function toBroadcastArray(): array
     {
-        // Make sure players are loaded (no DB write, just safety)
+        // Make sure players are loaded
         $this->loadMissing('players');
 
         return [
@@ -49,8 +49,8 @@ class Game extends Model //automatically  looks for games  table (plural,lowerca
             'players' => $this->players->map(fn ($player) => [
                 'session_id' => $player->session_id,
                 'symbol' => $player->symbol,
-                'is_host' => $player->is_host,
-            ])->values(),
+                'is_host' => (bool) $player->is_host,  // ← Cast to boolean
+            ])->values()->toArray(),  // ← Convert to plain array!
         ];
     }
 }
