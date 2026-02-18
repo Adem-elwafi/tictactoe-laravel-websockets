@@ -41,199 +41,93 @@ export default function Game({ room_code, initialGame, mySymbol }) {
     }, []);
 
     const handleCellClick = async (index) => {
-        console.log('Attempting move at position:', index);
+        if (!canPlay()) {
+            console.log('❌ Cannot play - not your turn or game inactive');
+            return;
+        }
         
-        if (!canPlay()) return;
-        if (game.board[index] !== '' && game.board[index] !== null) return;
+        if (game.board[index] !== '' && game.board[index] !== null) {
+            console.log('❌ Cell already occupied');
+            return;
+        }
         
-        setIsLoading(true);
+        console.log('🎯 Attempting move at position:', index);
         
         try {
             const response = await axios.post(`/api/games/${game.id}/move`, {
                 position: index
             });
             
-            console.log('Move successful:', response.data);
+            console.log('✅ Move successful:', response.data);
             
-            // ← FIX for Bug 3: Update state immediately from API response
-            if (response.data.success && response.data.data.game) {
+            // CRITICAL: Update state immediately from API response
+            if (response.data.success && response.data.data?.game) {
+                console.log('🔄 Updating state from API response');
                 updateGameState(response.data.data.game);
             }
             
         } catch (error) {
-            console.error('Move failed:', error.response?.data || error.message);
+            console.error('❌ Move failed:', error.response?.data || error.message);
             
-            // Optional: show user-friendly error
             if (error.response?.data?.message) {
                 alert(error.response.data.message);
             }
-        } finally {
-            setIsLoading(false);
         }
     };
 
     // ← FIX for Bug 2: Remove getMySymbol() and use mySymbol prop directly
 
-// ← FIX for Bug 2: Check if it's your turn using mySymbol prop
-const isMyTurn = () => {
-    return game.current_turn === mySymbol;
-};
+    // ← FIX for Bug 2: Check if it's your turn using mySymbol prop
+    const isMyTurn = () => {
+        return game.current_turn === mySymbol;
+    };
 
-// ← FIX for Bug 2 & 4: Check if game is playable
-const canPlay = () => {
-    return game.status === 'playing' && isMyTurn() && !isLoading;
-};
+    // ← FIX for Bug 2 & 4: Check if game is playable
+    const canPlay = () => {
+        return game.status === 'playing' && isMyTurn() && !isLoading;
+    };
     useEffect(() => {
-        if (!window.Echo) {
-            console.error("❌ Echo not found");
-            setConnectionStatus('failed');
-            setIsInitialLoad(false);
-            return;
-        }
-
-        console.log("Initial game state:", initialGame);
-        console.log("My symbol:", mySymbol);
-
-        const channelName = `game.${game.id}`;
-        console.log("📡 Subscribing to channel:", channelName);
-
-        // Subscribe to the PUBLIC channel (not private)
+        const channelName = `game.${initialGame.id}`;
+        console.log('🔌 Subscribing to channel:', channelName);
+        
+        // Subscribe to PUBLIC channel (not private)
         const channel = window.Echo.channel(channelName)
             .subscribed(() => {
                 console.log('✅ Successfully subscribed to', channelName);
+                setConnectionStatus('connected');
             })
-            .listen('GameUpdated', (data) => {
-                console.log('GameUpdated event received:', data);
-                const gameData = data.game || data;
-                console.log('Extracted game data:', gameData);
+            .listen('.GameUpdated', (data) => {
+                console.log('📡 GameUpdated event received:', data);
                 
-                // Check if opponent just joined (status changed from waiting to playing)
+                const gameData = data.game || data;
+                console.log('📊 Extracted game data:', gameData);
+                
+                // Check if opponent just joined
                 if (gameData.status === 'playing' && previousStatusRef.current === 'waiting') {
                     showMessage('Opponent joined! Game starting...');
                 }
                 
-                // Update ref for next comparison
                 previousStatusRef.current = gameData.status;
-                
-                // Update game state
                 updateGameState(gameData);
             })
-            .listen('PlayerJoined', (data) => {
-                console.log('PlayerJoined event received:', data);
+            .listen('.PlayerJoined', (data) => {
+                console.log('👥 PlayerJoined event received:', data);
                 const gameData = data.game || data;
-                console.log('Extracted game data from PlayerJoined:', gameData);
                 updateGameState(gameData);
             })
             .error((error) => {
-                console.error("❌ Channel subscription error:", error);
+                console.error('❌ Channel error:', error);
                 setConnectionStatus('disconnected');
-                setIsInitialLoad(false);
             });
 
-        // Automatic reconnection with exponential backoff
-        const attemptReconnect = (attempt) => {
-            if (attempt >= maxReconnectAttempts) {
-                console.log('Max reconnection attempts reached');
-                setConnectionStatus('failed');
-                return;
-            }
-
-            const delay = Math.min(1000 * Math.pow(2, attempt), 16000);
-            
-            console.log(`🔄 Reconnecting in ${delay/1000}s (attempt ${attempt + 1}/${maxReconnectAttempts})`);
-            setReconnectAttempt(attempt + 1);
-            setConnectionStatus('reconnecting');
-
-            reconnectTimeoutRef.current = setTimeout(() => {
-                console.log(`🔄 Reconnect attempt ${attempt + 1}`);
-                
-                try {
-                    window.Echo.connector.pusher.connect();
-                } catch (error) {
-                    console.error('Reconnect failed:', error);
-                    attemptReconnect(attempt + 1);
-                }
-            }, delay);
-        };
-
-        // Connection event handlers
-        const handleConnected = () => {
-            console.log('✅ Echo connected');
-            setConnectionStatus('connected');
-            setReconnectAttempt(0);
-            setIsInitialLoad(false);
-            
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-                reconnectTimeoutRef.current = null;
-            }
-        };
-
-        const handleDisconnected = () => {
-            console.log('🔴 Echo disconnected');
-            setConnectionStatus('disconnected');
-            setIsInitialLoad(false);
-            attemptReconnect(0);
-        };
-
-        const handleConnecting = () => {
-            console.log('🟡 Echo connecting...');
-            setConnectionStatus('connecting');
-        };
-
-        // Bind connection events
-        window.Echo.connector.pusher.connection.bind('connected', handleConnected);
-        window.Echo.connector.pusher.connection.bind('disconnected', handleDisconnected);
-        window.Echo.connector.pusher.connection.bind('connecting', handleConnecting);
-
-        // Set initial status
-        const currentState = window.Echo.connector.pusher.connection.state;
-        if (currentState === 'connected') {
-            setConnectionStatus('connected');
-            setIsInitialLoad(false);
-        } else if (currentState === 'connecting') {
-            setConnectionStatus('connecting');
-        }
-
-        // Handle page visibility changes (user switches tabs)
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                // User came back to tab - check connection
-                const state = window.Echo.connector.pusher.connection.state;
-                if (state === 'disconnected' || state === 'unavailable') {
-                    console.log('Page visible again, reconnecting...');
-                    window.Echo.connector.pusher.connect();
-                }
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Cleanup on unmount
+        // Cleanup function
         return () => {
-            // Clear all timeouts
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-            }
-            if (messageTimeoutRef.current) {
-                clearTimeout(messageTimeoutRef.current);
-            }
-
-            // Remove visibility listener
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-
-            // Unbind connection events
-            window.Echo.connector.pusher.connection.unbind('connected', handleConnected);
-            window.Echo.connector.pusher.connection.unbind('disconnected', handleDisconnected);
-            window.Echo.connector.pusher.connection.unbind('connecting', handleConnecting);
-
-            // Stop listening and leave channel
+            console.log('🔌 Unsubscribing from', channelName);
             channel.stopListening('GameUpdated');
             channel.stopListening('PlayerJoined');
-            window.Echo.leave(channelName);
-            console.log("📡 Leaving channel:", channelName);
+            window.Echo.leaveChannel(channelName);
         };
-    }, [game.id, updateGameState, showMessage]); // Changed: use game.id instead of room_code
+    }, [initialGame.id, updateGameState, showMessage]);
 
     // Helper function to get status badge
     const getStatusDisplay = () => {
