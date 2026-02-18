@@ -381,13 +381,30 @@ public function move(Request $request, Game $game)
 
     $game->save();
 
-    Log::info('Move successful', [
-        'game_id' => $game->id,
-        'position' => $position,
-        'symbol' => $player->symbol,
-        'next_turn' => $game->current_turn,
-        'board' => $board,
+$game->save();
+
+// DEBUG: Check if broadcast is being called
+Log::info('About to broadcast GameUpdated', [
+    'game_id' => $game->id,
+    'board' => $game->board,
+]);
+
+try {
+    $freshGame = $game->fresh()->load('players');
+    Log::info('Broadcasting to channel', [
+        'channel' => 'game.' . $freshGame->id,
+        'game_data' => $freshGame->toBroadcastArray(),
     ]);
+    
+    broadcast(new GameUpdated($freshGame))->toOthers();
+    
+    Log::info('Broadcast completed successfully');
+} catch (\Exception $e) {
+    Log::error('Broadcast failed', [
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+    ]);
+}
 
     // Broadcast the update to other players
     broadcast(new GameUpdated($game->fresh()->load('players')))->toOthers();
