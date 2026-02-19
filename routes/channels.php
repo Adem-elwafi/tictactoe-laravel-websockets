@@ -9,10 +9,6 @@ use App\Models\Game;
 |--------------------------------------------------------------------------
 */
 
-// Public channel for games - accessible by game ID
-// No authentication needed since we're using session-based players
-Broadcast::channel('game.{id}', function ($user, $id) {
-    // Allow anyone to access the game channel
-    // In a real app you'd verify they are in the game
-    return true;
-});
+// Public channel - no authentication needed
+// Public channels (using Channel class) don't need to be defined here
+// Only private/presence channels need authorization callbacks

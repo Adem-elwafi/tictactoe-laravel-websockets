@@ -375,13 +375,19 @@ public function move(Request $request, Game $game)
     $board = array_map(fn($cell) => $cell ?? '', $board);
     
     $game->board = $board;
-
-    // Switch turn to the other player
-    $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
-
+    // ── Win/draw detection ──────────────────────────────────────────
+    $result = $game->checkGameResult($board);
+    $game->status = $result['status'];
+    $game->winner = $result['winner'];
+    $game->winning_line = $result['winning_line'];
+    // Only switch the turn if the game is still going
+    // (no point showing "O's turn" on a finished game)
+    if ($result['status'] === 'playing') {
+        $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
+    }
     $game->save();
 
-$game->save();
+
 
 // DEBUG: Check if broadcast is being called
 Log::info('About to broadcast GameUpdated', [
@@ -423,6 +429,8 @@ try {
                 'current_turn' => $game->current_turn,
                 'status' => $game->status,
                 'winner' => $game->winner,
+                'winning_line' => $game->winning_line, 
+
                 'players' => $game->players->map(function ($player) {
                     return [
                         'session_id' => $player->session_id,

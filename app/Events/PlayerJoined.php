@@ -25,12 +25,12 @@ class PlayerJoined implements ShouldBroadcast
     /**
      * The channel the event should broadcast on.
      */
-    public function broadcastOn(): Channel
+    public function broadcastOn(): array
     {
-        // PUBLIC channel using game ID (matches Game.jsx: game.${game.id})
-        return new Channel('game.' . $this->game->id);
+        return [
+            new Channel('game.' . $this->game->id),
+        ];
     }
-
     /**
      * The event name on the client side.
      */
