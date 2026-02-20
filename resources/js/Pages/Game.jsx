@@ -296,11 +296,40 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                     <p className={`font-bold text-lg ${
                         isMyTurn() ? 'text-green-700' : 'text-gray-600'
                     }`}>
-                        {isMyTurn() ? '✨ YOUR TURN' : '⏳ Opponent\'s turn'}
+                        {isMyTurn() ? '✨ YOUR TURN' : "⏳ Opponent's turn"}
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
                         Current turn: <span className="font-bold">{game.current_turn}</span>
                     </p>
+                </div>
+            )}
+            {/* Game Over Banner */}
+            {game.status === 'finished' && (
+                <div className={`rounded-lg p-6 border-2 text-center ${
+                    game.winner === 'draw'
+                        ? 'bg-gray-50 border-gray-400'
+                        : game.winner === mySymbol
+                            ? 'bg-green-50 border-green-500'
+                            : 'bg-red-50 border-red-400'
+                }`}>
+                    <p className="text-4xl font-bold mb-2">
+                        {game.winner === 'draw'
+                            ? "🤝 It's a Draw!"
+                            : game.winner === mySymbol
+                                ? '🎉 You Win!'
+                                : '😔 You Lose!'}
+                    </p>
+                    <p className="text-gray-500 text-sm mb-4">
+                        {game.winner === 'draw'
+                            ? 'Nobody wins this time.'
+                            : `${game.winner} takes the victory!`}
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        🔄 Play Again
+                    </button>
                 </div>
             )}
         </div>
@@ -316,31 +345,21 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                         disabled={!canPlay() || (cell !== '' && cell !== null)}
                         className={`
                             w-20 h-20 border-2 flex items-center justify-center 
-                            text-3xl font-bold transition-all
-                            ${canPlay() && (cell === '' || cell === null)
-                                ? 'border-gray-400 bg-white hover:bg-blue-50 hover:border-blue-400 cursor-pointer'
-                                : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                            text-3xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500
+                            ${game.status === 'finished'
+                                ? 'border-gray-200 bg-white cursor-default opacity-80'
+                                : canPlay() && (cell === '' || cell === null)
+                                    ? 'border-gray-400 bg-white hover:bg-blue-50 hover:border-blue-400 cursor-pointer'
+                                    : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
                             }
                             ${cell === 'X' ? 'text-blue-600' : ''}
                             ${cell === 'O' ? 'text-red-600' : ''}
-                            focus:outline-none focus:ring-2 focus:ring-blue-500
                         `}
                     >
                         {cell || ''}
                     </button>
                 ))}
-            </div>
-                {game.status === 'playing' && (
-                    <p style={{ 
-                        color: '#004085', 
-                        background: '#cce5ff', 
-                        padding: '10px', 
-                        borderRadius: '4px' 
-                    }}>
-                        🎮 Game in progress!
-                    </p>
-                )}
-            </div>
+
 
             {/* Warning if reconnecting */}
             {connectionStatus === 'reconnecting' && (
