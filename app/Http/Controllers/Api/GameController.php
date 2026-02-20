@@ -311,141 +311,203 @@ public function store(Request $request): \Illuminate\Http\JsonResponse
             ], 500);
         }
     }
-public function move(Request $request, Game $game)
-{
-    $validated = $request->validate([
-        'position' => 'required|integer|min:0|max:8',
-    ]);
+    public function move(Request $request, Game $game)
+    {
+        $validated = $request->validate([
+            'position' => 'required|integer|min:0|max:8',
+        ]);
 
-    $position = $validated['position'];
-    
-    // Get current session
-    $sessionId = session()->getId();
-    
-    // DEBUG: Log what we're comparing
-    Log::info('Move attempt', [
-        'game_id' => $game->id,
-        'current_session' => $sessionId,
-        'players_in_game' => $game->players->map(fn($p) => [
-            'session_id' => $p->session_id,
-            'symbol' => $p->symbol,
-        ])->toArray(),
-    ]);
-    
-    // Find this player in the game
-    $player = $game->players()->where('session_id', $sessionId)->first();
-    
-    if (!$player) {
-        Log::error('Player not found in game', [
-            'looking_for_session' => $sessionId,
-            'game_has_sessions' => $game->players->pluck('session_id')->toArray(),
+        $position = $validated['position'];
+        
+        // Get current session
+        $sessionId = session()->getId();
+        
+        // DEBUG: Log what we're comparing
+        Log::info('Move attempt', [
+            'game_id' => $game->id,
+            'current_session' => $sessionId,
+            'players_in_game' => $game->players->map(fn($p) => [
+                'session_id' => $p->session_id,
+                'symbol' => $p->symbol,
+            ])->toArray(),
         ]);
         
-        return response()->json(['message' => 'You are not in this game'], 403);
-    }
+        // Find this player in the game
+        $player = $game->players()->where('session_id', $sessionId)->first();
+        
+        if (!$player) {
+            Log::error('Player not found in game', [
+                'looking_for_session' => $sessionId,
+                'game_has_sessions' => $game->players->pluck('session_id')->toArray(),
+            ]);
+            
+            return response()->json(['message' => 'You are not in this game'], 403);
+        }
 
-    // Check if game is in a playable state
-    if ($game->status !== 'playing') {
-        return response()->json([
-            'message' => 'Game is not active. Status: ' . $game->status
-        ], 422);
-    }
+        // Check if game is in a playable state
+        if ($game->status !== 'playing') {
+            return response()->json([
+                'message' => 'Game is not active. Status: ' . $game->status
+            ], 422);
+        }
 
-    // Check if it's this player's turn
-    if ($game->current_turn !== $player->symbol) {
-        return response()->json([
-            'message' => 'Not your turn. Waiting for ' . $game->current_turn
-        ], 422);
-    }
+        // Check if it's this player's turn
+        if ($game->current_turn !== $player->symbol) {
+            return response()->json([
+                'message' => 'Not your turn. Waiting for ' . $game->current_turn
+            ], 422);
+        }
 
-    // Get the board
-    $board = $game->board;
+        // Get the board
+        $board = $game->board;
 
-    // ← FIX for Bug 4: Check if cell is empty (handle both null and '')
-    if ($board[$position] !== '' && $board[$position] !== null) {
-        return response()->json([
-            'message' => 'Cell already occupied'
-        ], 422);
-    }
+        // ← FIX for Bug 4: Check if cell is empty (handle both null and '')
+        if ($board[$position] !== '' && $board[$position] !== null) {
+            return response()->json([
+                'message' => 'Cell already occupied'
+            ], 422);
+        }
 
-    // Make the move
-    $board[$position] = $player->symbol;
-    
-    // ← FIX for Bug 4: Normalize board to use '' instead of null
-    $board = array_map(fn($cell) => $cell ?? '', $board);
-    
-    $game->board = $board;
-    // ── Win/draw detection ──────────────────────────────────────────
-    $result = $game->checkGameResult($board);
-    $game->status = $result['status'];
-    $game->winner = $result['winner'];
-    $game->winning_line = $result['winning_line'];
-    // Only switch the turn if the game is still going
-    // (no point showing "O's turn" on a finished game)
-    if ($result['status'] === 'playing') {
-        $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
-    }
-    $game->save();
+        // Make the move
+        $board[$position] = $player->symbol;
+        
+        // ← FIX for Bug 4: Normalize board to use '' instead of null
+        $board = array_map(fn($cell) => $cell ?? '', $board);
+        
+        $game->board = $board;
+        // ── Win/draw detection ──────────────────────────────────────────
+        $result = $game->checkGameResult($board);
+        $game->status = $result['status'];
+        $game->winner = $result['winner'];
+        $game->winning_line = $result['winning_line'];
+        // Only switch the turn if the game is still going
+        // (no point showing "O's turn" on a finished game)
+        if ($result['status'] === 'playing') {
+            $game->current_turn = $player->symbol === 'X' ? 'O' : 'X';
+        }
+        $game->save();
 
 
 
-// DEBUG: Check if broadcast is being called
-Log::info('About to broadcast GameUpdated', [
-    'game_id' => $game->id,
-    'board' => $game->board,
-]);
-
-try {
-    $freshGame = $game->fresh()->load('players');
-    Log::info('Broadcasting to channel', [
-        'channel' => 'game.' . $freshGame->id,
-        'game_data' => $freshGame->toBroadcastArray(),
+    // DEBUG: Check if broadcast is being called
+    Log::info('About to broadcast GameUpdated', [
+        'game_id' => $game->id,
+        'board' => $game->board,
     ]);
-    
-    broadcast(new GameUpdated($freshGame))->toOthers();
-    
-    Log::info('Broadcast completed successfully');
-} catch (\Exception $e) {
-    Log::error('Broadcast failed', [
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
-    ]);
-}
 
-    // Broadcast the update to other players
-    broadcast(new GameUpdated($game->fresh()->load('players')))->toOthers();
+    try {
+        $freshGame = $game->fresh()->load('players');
+        Log::info('Broadcasting to channel', [
+            'channel' => 'game.' . $freshGame->id,
+            'game_data' => $freshGame->toBroadcastArray(),
+        ]);
+        
+        broadcast(new GameUpdated($freshGame))->toOthers();
+        
+        Log::info('Broadcast completed successfully');
+    } catch (\Exception $e) {
+        Log::error('Broadcast failed', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
 
-    // ← FIX for Bug 3: Return full game object with players in API response
-    $game->fresh()->load('players');
-    
-    return response()->json([
-        'success' => true,
-        'message' => 'Move made successfully',
-        'data' => [
-            'game' => [
-                'id' => $game->id,
-                'room_code' => $game->room_code,
-                'board' => $game->board,
-                'current_turn' => $game->current_turn,
-                'status' => $game->status,
-                'winner' => $game->winner,
-                'winning_line' => $game->winning_line, 
+        // Broadcast the update to other players
+        broadcast(new GameUpdated($game->fresh()->load('players')))->toOthers();
 
-                'players' => $game->players->map(function ($player) {
-                    return [
-                        'session_id' => $player->session_id,
-                        'symbol' => $player->symbol,
-                        'is_host' => $player->is_host,
-                    ];
-                })->toArray(),
-            ],
-            'move' => [
-                'position' => $position,
-                'symbol' => $player->symbol,
+        // ← FIX for Bug 3: Return full game object with players in API response
+        $game->fresh()->load('players');
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Move made successfully',
+            'data' => [
+                'game' => [
+                    'id' => $game->id,
+                    'room_code' => $game->room_code,
+                    'board' => $game->board,
+                    'current_turn' => $game->current_turn,
+                    'status' => $game->status,
+                    'winner' => $game->winner,
+                    'winning_line' => $game->winning_line, 
+
+                    'players' => $game->players->map(function ($player) {
+                        return [
+                            'session_id' => $player->session_id,
+                            'symbol' => $player->symbol,
+                            'is_host' => $player->is_host,
+                        ];
+                    })->toArray(),
+                ],
+                'move' => [
+                    'position' => $position,
+                    'symbol' => $player->symbol,
+                ]
             ]
-        ]
-    ]);
-}
+        ]);
+    }
+    public function reset(Game $game)
+    {
+        // ── Security: only players inside this game can reset it ──
+        $sessionId = session()->getId();
+        $player = $game->players()->where('session_id', $sessionId)->first();
+
+        if (!$player) {
+            return response()->json([
+                'message' => 'You are not in this game'
+            ], 403);
+        }
+
+        // ── Only allow reset when game is finished ──
+        // Prevents resetting a game mid-play (e.g. accidental double-click)
+        if ($game->status !== 'finished') {
+            return response()->json([
+                'message' => 'Game is not finished yet'
+            ], 422);
+        }
+
+        // ── Reset all game state, keep players untouched ──
+        $game->board        = ['', '', '', '', '', '', '', '', ''];
+        $game->status       = 'playing';
+        $game->current_turn = 'X';      // X always goes first
+        $game->winner       = null;
+        $game->winning_line = null;
+
+        $game->save();
+
+        Log::info('Game reset', [
+            'game_id'    => $game->id,
+            'reset_by'   => $sessionId,
+            'room_code'  => $game->room_code,
+        ]);
+
+        // ── Broadcast to the OTHER player so their board clears too ──
+        $freshGame = $game->fresh()->load('players');
+        broadcast(new GameUpdated($freshGame))->toOthers();
+
+        // ── Return fresh state to the player WHO clicked reset ──
+        // (they don't receive their own broadcast due to toOthers())
+        return response()->json([
+            'success' => true,
+            'message' => 'Game reset successfully',
+            'data' => [
+                'game' => [
+                    'id'           => $game->id,
+                    'room_code'    => $game->room_code,
+                    'board'        => $game->board,
+                    'current_turn' => $game->current_turn,
+                    'status'       => $game->status,
+                    'winner'       => $game->winner,
+                    'winning_line' => $game->winning_line,
+                    'players'      => $game->players->map(fn($p) => [
+                        'session_id' => $p->session_id,
+                        'symbol'     => $p->symbol,
+                        'is_host'    => $p->is_host,
+                    ])->toArray(),
+                ]
+            ]
+        ]);
+    }
     public function room(string $room_code)
 {
     $game = Game::where('room_code', $room_code)

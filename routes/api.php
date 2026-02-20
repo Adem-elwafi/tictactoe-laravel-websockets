@@ -26,6 +26,9 @@ Route::middleware('web')->group(function () {
     
     // Make move endpoint
     Route::post('/games/{game}/move', [GameController::class, 'move']);
+
+    Route::post('/games/{game}/reset', [GameController::class, 'reset']);
+
 });
 
 // Show the join form
