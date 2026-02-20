@@ -344,22 +344,26 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                         onClick={() => handleCellClick(index)}
                         disabled={!canPlay() || (cell !== '' && cell !== null)}
                         className={`
-                            w-20 h-20 border-2 flex items-center justify-center 
-                            text-3xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500
-                            ${game.status === 'finished'
-                                ? 'border-gray-200 bg-white cursor-default opacity-80'
-                                : canPlay() && (cell === '' || cell === null)
-                                    ? 'border-gray-400 bg-white hover:bg-blue-50 hover:border-blue-400 cursor-pointer'
-                                    : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
-                            }
-                            ${cell === 'X' ? 'text-blue-600' : ''}
-                            ${cell === 'O' ? 'text-red-600' : ''}
-                        `}
+                                w-20 h-20 border-2 flex items-center justify-center 
+                                text-3xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500
+                                ${game.status === 'finished' && game.winning_line?.includes(index)
+                                    ? 'border-yellow-500 bg-yellow-100 scale-105'
+                                    : game.status === 'finished'
+                                        ? 'border-gray-200 bg-white cursor-default opacity-80'
+                                        : canPlay() && (cell === '' || cell === null)
+                                            ? 'border-gray-400 bg-white hover:bg-blue-50 hover:border-blue-400 cursor-pointer'
+                                            : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                                }
+                                ${cell === 'X' ? 'text-blue-600' : ''}
+                                ${cell === 'O' ? 'text-red-600' : ''}
+                            `}
                     >
                         {cell || ''}
                     </button>
                 ))}
+            </div>
 
+            </div>
 
             {/* Warning if reconnecting */}
             {connectionStatus === 'reconnecting' && (
