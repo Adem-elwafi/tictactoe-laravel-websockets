@@ -8,7 +8,8 @@ export default function Game({ room_code, initialGame, mySymbol }) {
     const [reconnectAttempt, setReconnectAttempt] = useState(0);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
-    
+    const [isResetting, setIsResetting] = useState(false);
+
     // Use refs to prevent stale closures
     const reconnectTimeoutRef = useRef(null);
     const messageTimeoutRef = useRef(null);
@@ -75,8 +76,31 @@ export default function Game({ room_code, initialGame, mySymbol }) {
         }
     };
 
-    // ← FIX for Bug 2: Remove getMySymbol() and use mySymbol prop directly
+    const handleReset = async () => {
+        // Prevent double-clicks while request is in flight
+        if (isResetting) return;
 
+        setIsResetting(true);
+
+        try {
+            const response = await axios.post(`/api/games/${game.id}/reset`);
+
+            console.log('🔄 Game reset:', response.data);
+
+            // Update our own state from the HTTP response
+            // (we won't receive our own broadcast due to toOthers())
+            if (response.data.success && response.data.data?.game) {
+                updateGameState(response.data.data.game);
+            }
+
+        } catch (error) {
+            console.error('❌ Reset failed:', error.response?.data || error.message);
+            alert(error.response?.data?.message || 'Reset failed. Try again.');
+        } finally {
+            // Always clear loading state, whether success or error
+            setIsResetting(false);
+        }
+    };
     // ← FIX for Bug 2: Check if it's your turn using mySymbol prop
     const isMyTurn = () => {
         return game.current_turn === mySymbol;
@@ -325,10 +349,15 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                             : `${game.winner} takes the victory!`}
                     </p>
                     <button
-                        onClick={() => window.location.reload()}
-                        className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                        onClick={handleReset}
+                        disabled={isResetting}
+                        className={`px-6 py-2 font-bold rounded-lg transition-colors
+                            ${isResetting
+                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                            }`}
                     >
-                        🔄 Play Again
+                        {isResetting ? '⏳ Resetting...' : '🔄 Play Again'}
                     </button>
                 </div>
             )}
