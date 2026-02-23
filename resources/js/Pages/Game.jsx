@@ -91,6 +91,8 @@ export default function Game({ room_code, initialGame, mySymbol }) {
             // (we won't receive our own broadcast due to toOthers())
             if (response.data.success && response.data.data?.game) {
                 updateGameState(response.data.data.game);
+                showMessage('🔄 Game restarted! Good luck!', 2000); 
+
             }
 
         } catch (error) {
@@ -122,15 +124,19 @@ export default function Game({ room_code, initialGame, mySymbol }) {
             })
             .listen('.GameUpdated', (data) => {
                 console.log('📡 GameUpdated event received:', data);
-                
+
                 const gameData = data.game || data;
-                console.log('📊 Extracted game data:', gameData);
-                
-                // Check if opponent just joined
+
+                // Opponent just joined
                 if (gameData.status === 'playing' && previousStatusRef.current === 'waiting') {
-                    showMessage('Opponent joined! Game starting...');
+                    showMessage('👥 Opponent joined! Game starting...');
                 }
-                
+
+                // ← new: game was reset by the other player
+                if (gameData.status === 'playing' && previousStatusRef.current === 'finished') {
+                    showMessage('🔄 Game restarted! Good luck!', 2000);
+                }
+
                 previousStatusRef.current = gameData.status;
                 updateGameState(gameData);
             })
