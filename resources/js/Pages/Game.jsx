@@ -206,8 +206,11 @@ export default function Game({ room_code, initialGame, mySymbol }) {
     // Loading skeleton while initial connection establishes
     if (isInitialLoad && connectionStatus === 'connecting') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-8 px-4">
-                <div className="max-w-2xl mx-auto">
+            <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-8 px-4 relative overflow-hidden">
+                {/* Subtle background pattern overlay */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none bg-pattern"></div>
+                
+                <div className="max-w-2xl mx-auto relative z-10 animate-fadeIn">
                     <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 flex justify-between items-center">
@@ -246,6 +249,34 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                 </div>
                 
                 <style>{`
+                    /* Smooth scrolling */
+                    html {
+                        scroll-behavior: smooth;
+                    }
+
+                    /* Card entrance animation */
+                    @keyframes fadeIn {
+                        from {
+                            opacity: 0;
+                            transform: translateY(20px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+
+                    .animate-fadeIn {
+                        animation: fadeIn 0.6s ease-out;
+                    }
+
+                    /* Subtle dot pattern background */
+                    .bg-pattern {
+                        background-image: radial-gradient(circle, rgba(99, 102, 241, 0.4) 1px, transparent 1px);
+                        background-size: 20px 20px;
+                    }
+
+                    /* Loading spinner animation */
                     @keyframes spin {
                         0% { transform: rotate(0deg); }
                         100% { transform: rotate(360deg); }
@@ -256,8 +287,11 @@ export default function Game({ room_code, initialGame, mySymbol }) {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-8 px-4">
-            <div className="max-w-2xl mx-auto">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-8 px-4 relative overflow-hidden">
+            {/* Subtle background pattern overlay */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none bg-pattern"></div>
+            
+            <div className="max-w-2xl mx-auto relative z-10 animate-fadeIn">
                 {/* Main Game Card */}
                 <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
                     {/* Header */}
@@ -442,6 +476,34 @@ export default function Game({ room_code, initialGame, mySymbol }) {
             </div>
 
             <style>{`
+                /* Smooth scrolling */
+                html {
+                    scroll-behavior: smooth;
+                }
+
+                /* Card entrance animation */
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                .animate-fadeIn {
+                    animation: fadeIn 0.6s ease-out;
+                }
+
+                /* Subtle dot pattern background */
+                .bg-pattern {
+                    background-image: radial-gradient(circle, rgba(99, 102, 241, 0.4) 1px, transparent 1px);
+                    background-size: 20px 20px;
+                }
+
+                /* Notification slide-in animation */
                 @keyframes slideIn {
                     from {
                         opacity: 0;
