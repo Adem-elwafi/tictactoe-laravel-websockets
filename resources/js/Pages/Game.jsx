@@ -357,10 +357,10 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                     <button
                         onClick={handleReset}
                         disabled={isResetting}
-                        className={`px-6 py-2 font-bold rounded-lg transition-colors
+                        className={`px-8 py-3 text-lg font-extrabold rounded-xl transition-all duration-200 shadow-lg
                             ${isResetting
-                                ? 'bg-gray-400 text-white cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                                ? 'bg-gray-400 text-white cursor-not-allowed opacity-60'
+                                : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:scale-105 hover:shadow-2xl active:scale-95 cursor-pointer'
                             }`}
                     >
                         {isResetting ? '⏳ Resetting...' : '🔄 Play Again'}
@@ -421,7 +421,7 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                                 </p>
                                 <button
                                     onClick={() => window.location.reload()}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors"
+                                    className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-lg font-bold hover:from-red-700 hover:to-rose-700 hover:scale-105 hover:shadow-lg active:scale-95 transition-all duration-200 shadow-md"
                                 >
                                     🔄 Refresh Page
                                 </button>
