@@ -381,18 +381,18 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                                             onClick={() => handleCellClick(index)}
                                             disabled={!canPlay() || (cell !== '' && cell !== null)}
                                             className={`
-                                                w-24 h-24 aspect-square border-2 flex items-center justify-center 
-                                                text-4xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg
+                                                w-24 h-24 aspect-square border-4 flex items-center justify-center 
+                                                text-5xl font-black transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-400 rounded-lg
                                                 ${game.status === 'finished' && game.winning_line?.includes(index)
-                                                    ? 'border-yellow-500 bg-yellow-100 scale-105'
+                                                    ? 'border-yellow-400 bg-yellow-200 scale-105 shadow-xl shadow-yellow-400/50 animate-pulse'
                                                     : game.status === 'finished'
-                                                        ? 'border-gray-200 bg-white cursor-default opacity-80'
+                                                        ? 'border-gray-300 bg-gray-50 cursor-default opacity-50'
                                                         : canPlay() && (cell === '' || cell === null)
-                                                            ? 'border-gray-400 bg-white hover:bg-blue-50 hover:border-blue-400 cursor-pointer'
-                                                            : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                                                            ? 'border-slate-600 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-500 hover:scale-105 hover:shadow-lg cursor-pointer'
+                                                            : 'border-slate-500 bg-slate-100 cursor-not-allowed opacity-70'
                                                 }
-                                                ${cell === 'X' ? 'text-blue-600' : ''}
-                                                ${cell === 'O' ? 'text-red-600' : ''}
+                                                ${cell === 'X' ? 'text-blue-600 drop-shadow-[0_2px_4px_rgba(37,99,235,0.5)]' : ''}
+                                                ${cell === 'O' ? 'text-orange-600 drop-shadow-[0_2px_4px_rgba(234,88,12,0.5)]' : ''}
                                             `}
                                         >
                                             {cell || ''}
