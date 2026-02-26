@@ -296,60 +296,60 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                         )}
                         {/* Status Section */}
                         <div className="text-center space-y-4">
-            <div className="bg-gray-100 rounded-lg p-4 mb-4">
-                <p className="text-sm text-gray-600 mb-1">Room Code</p>
-                <p className="text-2xl font-bold text-gray-800">{room_code}</p>
+            <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-5 shadow-md">
+                <p className="text-xs uppercase tracking-wider text-gray-500 mb-2 font-semibold">Room Code</p>
+                <p className="text-3xl font-black text-gray-800 tracking-wider">{room_code}</p>
             </div>
             
-            <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                <p className="text-sm text-gray-600 mb-1">You are</p>
-                <p className="text-3xl font-bold text-blue-600">{mySymbol || 'N/A'}</p>
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-5 shadow-md">
+                <p className="text-xs uppercase tracking-wider text-indigo-600 mb-2 font-semibold">You are playing as</p>
+                <p className="text-5xl font-black text-indigo-700 drop-shadow-lg">{mySymbol || 'N/A'}</p>
             </div>
             
             {game.status === 'waiting' && (
-                <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
-                    <p className="text-yellow-800 font-semibold">
+                <div className="bg-gradient-to-br from-yellow-50 to-amber-100 border-3 border-yellow-400 rounded-xl p-5 shadow-lg">
+                    <p className="text-yellow-800 font-bold text-xl tracking-tight">
                         ⏳ Waiting for opponent...
                     </p>
-                    <p className="text-sm text-yellow-700 mt-1">
-                        Share room code: <span className="font-mono font-bold">{room_code}</span>
+                    <p className="text-sm text-yellow-700 mt-2 font-medium">
+                        Share room code: <span className="font-mono font-extrabold text-base">{room_code}</span>
                     </p>
                 </div>
             )}
             
             {game.status === 'playing' && (
-                <div className={`rounded-lg p-4 border-2 ${
+                <div className={`rounded-xl p-5 border-3 shadow-lg ${
                     isMyTurn() 
-                        ? 'bg-green-50 border-green-400' 
-                        : 'bg-gray-50 border-gray-300'
+                        ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-500' 
+                        : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-400'
                 }`}>
-                    <p className={`font-bold text-lg ${
+                    <p className={`font-black text-2xl tracking-tight ${
                         isMyTurn() ? 'text-green-700' : 'text-gray-600'
                     }`}>
                         {isMyTurn() ? '✨ YOUR TURN' : "⏳ Opponent's turn"}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                        Current turn: <span className="font-bold">{game.current_turn}</span>
+                    <p className="text-sm text-gray-500 mt-2 font-medium">
+                        Current turn: <span className="font-extrabold text-base">{game.current_turn}</span>
                     </p>
                 </div>
             )}
             {/* Game Over Banner */}
             {game.status === 'finished' && (
-                <div className={`rounded-lg p-6 border-2 text-center ${
+                <div className={`rounded-xl p-8 border-4 text-center shadow-2xl ${
                     game.winner === 'draw'
-                        ? 'bg-gray-50 border-gray-400'
+                        ? 'bg-gradient-to-br from-gray-50 to-slate-100 border-gray-500'
                         : game.winner === mySymbol
-                            ? 'bg-green-50 border-green-500'
-                            : 'bg-red-50 border-red-400'
+                            ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-600'
+                            : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-500'
                 }`}>
-                    <p className="text-4xl font-bold mb-2">
+                    <p className="text-6xl font-black mb-3 tracking-tight leading-tight drop-shadow-md">
                         {game.winner === 'draw'
                             ? "🤝 It's a Draw!"
                             : game.winner === mySymbol
                                 ? '🎉 You Win!'
                                 : '😔 You Lose!'}
                     </p>
-                    <p className="text-gray-500 text-sm mb-4">
+                    <p className="text-gray-600 text-base mb-6 font-medium">
                         {game.winner === 'draw'
                             ? 'Nobody wins this time.'
                             : `${game.winner} takes the victory!`}
