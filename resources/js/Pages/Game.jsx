@@ -206,44 +206,43 @@ export default function Game({ room_code, initialGame, mySymbol }) {
     // Loading skeleton while initial connection establishes
     if (isInitialLoad && connectionStatus === 'connecting') {
         return (
-            <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-                <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: '20px'
-                }}>
-                    <h1 style={{ margin: 0 }}>Game Room</h1>
-                    <div style={{
-                        padding: '8px 16px',
-                        background: '#fff3cd',
-                        color: '#856404',
-                        borderRadius: '20px',
-                        fontSize: '14px',
-                        fontWeight: 'bold'
-                    }}>
-                        🟡 Connecting...
+            <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-8 px-4">
+                <div className="max-w-2xl mx-auto">
+                    <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 flex justify-between items-center">
+                            <h1 className="text-3xl font-bold text-white tracking-tight">Tic-Tac-Toe</h1>
+                            <div style={{
+                                padding: '8px 16px',
+                                background: '#fff3cd',
+                                color: '#856404',
+                                borderRadius: '20px',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}>
+                                🟡 Connecting...
+                            </div>
+                        </div>
+                        
+                        {/* Loading Content */}
+                        <div className="p-8">
+                            <div className="bg-gray-50 rounded-xl p-8 text-center">
+                                <div style={{
+                                    width: '50px',
+                                    height: '50px',
+                                    border: '5px solid #e9ecef',
+                                    borderTop: '5px solid #6366f1',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    margin: '0 auto 20px'
+                                }}></div>
+                                <p className="text-gray-600 text-lg">
+                                    Establishing connection to game room...
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div style={{
-                    padding: '20px',
-                    background: '#f8f9fa',
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                }}>
-                    <div style={{
-                        width: '50px',
-                        height: '50px',
-                        border: '5px solid #e9ecef',
-                        borderTop: '5px solid #007bff',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        margin: '0 auto 20px'
-                    }}></div>
-                    <p style={{ color: '#6c757d', margin: 0 }}>
-                        Establishing connection to game room...
-                    </p>
                 </div>
                 
                 <style>{`
@@ -257,45 +256,46 @@ export default function Game({ room_code, initialGame, mySymbol }) {
     }
 
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '20px'
-            }}>
-                <h1 style={{ margin: 0 }}>Game Room</h1>
-                
-                {/* Connection Status Badge */}
-                <div style={{
-                    padding: '8px 16px',
-                    background: statusDisplay.bg,
-                    color: statusDisplay.color,
-                    borderRadius: '20px',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                }}>
-                    {statusDisplay.text}
-                </div>
-            </div>
+        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-8 px-4">
+            <div className="max-w-2xl mx-auto">
+                {/* Main Game Card */}
+                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 flex justify-between items-center">
+                        <h1 className="text-3xl font-bold text-white tracking-tight">Tic-Tac-Toe</h1>
+                        
+                        {/* Connection Status Badge */}
+                        <div style={{
+                            padding: '8px 16px',
+                            background: statusDisplay.bg,
+                            color: statusDisplay.color,
+                            borderRadius: '20px',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                            {statusDisplay.text}
+                        </div>
+                    </div>
 
-            
-            {/* Notification message */}
-            {message && (
-                <div style={{
-                    padding: '10px',
-                    background: '#d4edda',
-                    color: '#155724',
-                    border: '1px solid #c3e6cb',
-                    borderRadius: '4px',
-                    marginBottom: '15px',
-                    animation: 'slideIn 0.3s ease-out'
-                }}>
-                    {message}
-                </div>
-            )}
-            {/* Status Section */}
-        <div className="mb-6 text-center">
+                    {/* Content Area */}
+                    <div className="p-6 space-y-6">
+                        {/* Notification message */}
+                        {message && (
+                            <div style={{
+                                padding: '12px 16px',
+                                background: '#d4edda',
+                                color: '#155724',
+                                border: '1px solid #c3e6cb',
+                                borderRadius: '8px',
+                                animation: 'slideIn 0.3s ease-out',
+                                fontWeight: '500'
+                            }}>
+                                {message}
+                            </div>
+                        )}
+                        {/* Status Section */}
+                        <div className="text-center space-y-4">
             <div className="bg-gray-100 rounded-lg p-4 mb-4">
                 <p className="text-sm text-gray-600 mb-1">Room Code</p>
                 <p className="text-2xl font-bold text-gray-800">{room_code}</p>
@@ -367,11 +367,12 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                     </button>
                 </div>
             )}
-        </div>
-            {/* Game state display */}
-            <div style={{ marginTop: '20px' }}>
-                {/* 3×3 Tic-Tac-Toe Board */}
-            <div className="grid grid-cols-3 gap-2 w-64 mx-auto">
+                        </div>
+
+                        {/* Game Board Section */}
+                        <div className="mt-6">
+                            {/* 3×3 Tic-Tac-Toe Board */}
+                            <div className="grid grid-cols-3 gap-2 w-64 mx-auto">
                 {game.board.map((cell, index) => (
                     <button
                         key={index}
@@ -395,75 +396,48 @@ export default function Game({ room_code, initialGame, mySymbol }) {
                     >
                         {cell || ''}
                     </button>
-                ))}
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Warning if reconnecting */}
+                        {connectionStatus === 'reconnecting' && (
+                            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <strong className="text-yellow-800">🔄 Reconnecting...</strong>
+                                <p className="mt-2 mb-0 text-yellow-700 text-sm">
+                                    Attempting to restore connection (attempt {reconnectAttempt}/{maxReconnectAttempts})
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Warning if connection failed permanently */}
+                        {connectionStatus === 'failed' && (
+                            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <strong className="text-red-800">⚠️ Connection Failed</strong>
+                                <p className="mt-2 mb-3 text-red-700 text-sm">
+                                    Could not reconnect after {maxReconnectAttempts} attempts. Real-time updates are paused.
+                                </p>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors"
+                                >
+                                    🔄 Refresh Page
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Warning if simply disconnected */}
+                        {connectionStatus === 'disconnected' && (
+                            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <strong className="text-red-800">⚠️ Connection Lost</strong>
+                                <p className="mt-2 mb-0 text-red-700 text-sm">
+                                    Attempting to reconnect automatically...
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-
-            </div>
-
-            {/* Warning if reconnecting */}
-            {connectionStatus === 'reconnecting' && (
-                <div style={{
-                    marginTop: '20px',
-                    padding: '15px',
-                    background: '#fff3cd',
-                    color: '#856404',
-                    border: '1px solid #ffeaa7',
-                    borderRadius: '4px'
-                }}>
-                    <strong>🔄 Reconnecting...</strong>
-                    <p style={{ marginTop: '5px', marginBottom: 0 }}>
-                        Attempting to restore connection (attempt {reconnectAttempt}/{maxReconnectAttempts})
-                    </p>
-                </div>
-            )}
-
-            {/* Warning if connection failed permanently */}
-            {connectionStatus === 'failed' && (
-                <div style={{
-                    marginTop: '20px',
-                    padding: '15px',
-                    background: '#f8d7da',
-                    color: '#721c24',
-                    border: '1px solid #f5c6cb',
-                    borderRadius: '4px'
-                }}>
-                    <strong>⚠️ Connection Failed</strong>
-                    <p style={{ marginTop: '5px', marginBottom: '10px' }}>
-                        Could not reconnect after {maxReconnectAttempts} attempts. Real-time updates are paused.
-                    </p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        style={{
-                            padding: '8px 16px',
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        🔄 Refresh Page
-                    </button>
-                </div>
-            )}
-
-            {/* Warning if simply disconnected */}
-            {connectionStatus === 'disconnected' && (
-                <div style={{
-                    marginTop: '20px',
-                    padding: '15px',
-                    background: '#f8d7da',
-                    color: '#721c24',
-                    border: '1px solid #f5c6cb',
-                    borderRadius: '4px'
-                }}>
-                    <strong>⚠️ Connection Lost</strong>
-                    <p style={{ marginTop: '5px', marginBottom: 0 }}>
-                        Attempting to reconnect automatically...
-                    </p>
-                </div>
-            )}
 
             <style>{`
                 @keyframes slideIn {
