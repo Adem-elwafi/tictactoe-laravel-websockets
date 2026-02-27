@@ -9,13 +9,9 @@ use App\Http\Controllers\Api\GameController;
 use App\Models\Game; 
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+    return Inertia::render('Home');
+})->name('home');
+
 //create game page route 
 Route::get('/create-game', function () {
     return Inertia::render('CreateGame');
