@@ -4,6 +4,9 @@ import axios from 'axios';
 
 export default function Home() {
     const [isCreating, setIsCreating] = useState(false);
+    const [roomCode, setRoomCode] = useState('');
+    const [isJoining, setIsJoining] = useState(false);
+    const [joinError, setJoinError] = useState('');
 
     const handleCreateGame = async () => {
         setIsCreating(true);
@@ -20,6 +23,42 @@ export default function Home() {
             console.error('Failed to create game:', error);
             alert('Failed to create game. Please try again.');
             setIsCreating(false);
+        }
+    };
+
+    const handleRoomCodeChange = (e) => {
+        const value = e.target.value.toUpperCase();
+        setRoomCode(value);
+        // Clear error when user starts typing
+        if (joinError) setJoinError('');
+    };
+
+    const handleJoinGame = async (e) => {
+        e.preventDefault();
+        
+        if (roomCode.length < 6) {
+            setJoinError('Room code must be at least 6 characters');
+            return;
+        }
+
+        setIsJoining(true);
+        setJoinError('');
+        
+        try {
+            const response = await axios.post('/api/games/join', {
+                room_code: roomCode
+            });
+            
+            if (response.data.success) {
+                const gameId = response.data.data.game.id;
+                // Redirect to game room using Inertia
+                router.visit(`/game/${gameId}`);
+            }
+        } catch (error) {
+            console.error('Failed to join game:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to join game. Please check the room code.';
+            setJoinError(errorMessage);
+            setIsJoining(false);
         }
     };
 
@@ -77,23 +116,58 @@ export default function Home() {
 
                         {/* Join Game Card */}
                         <div className="bg-white rounded-2xl shadow-2xl p-8 hover:shadow-3xl transition-shadow duration-300">
-                            <div className="text-center">
-                                <div className="text-6xl mb-6">🚪</div>
-                                <h2 className="text-3xl font-bold text-gray-800 mb-4">
-                                    Join Game
-                                </h2>
-                                <p className="text-gray-600 mb-8">
-                                    Have a room code? Enter it below to join your friend
-                                </p>
-                                <input
-                                    type="text"
-                                    placeholder="ENTER CODE"
-                                    className="w-full px-6 py-4 text-center text-lg font-bold border-2 border-gray-300 rounded-xl mb-4 uppercase focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
-                                />
-                                <button className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-bold py-4 px-8 rounded-xl hover:from-pink-700 hover:to-rose-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
-                                    Join Game
-                                </button>
-                            </div>
+                            <form onSubmit={handleJoinGame}>
+                                <div className="text-center">
+                                    <div className="text-6xl mb-6">🚪</div>
+                                    <h2 className="text-3xl font-bold text-gray-800 mb-4">
+                                        Join Game
+                                    </h2>
+                                    <p className="text-gray-600 mb-8">
+                                        Have a room code? Enter it below to join your friend
+                                    </p>
+                                    <input
+                                        type="text"
+                                        value={roomCode}
+                                        onChange={handleRoomCodeChange}
+                                        placeholder="ENTER CODE"
+                                        maxLength={8}
+                                        disabled={isJoining}
+                                        className={`w-full px-6 py-4 text-center text-lg font-bold border-2 rounded-xl mb-4 uppercase focus:outline-none focus:ring-2 transition-all ${
+                                            joinError 
+                                                ? 'border-red-400 focus:border-red-500 focus:ring-red-200' 
+                                                : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
+                                        } ${isJoining ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                    
+                                    {joinError && (
+                                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                            <p className="text-sm text-red-600 font-medium">{joinError}</p>
+                                        </div>
+                                    )}
+                                    
+                                    <button 
+                                        type="submit"
+                                        disabled={isJoining || roomCode.length < 6}
+                                        className={`w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 shadow-lg ${
+                                            (isJoining || roomCode.length < 6)
+                                                ? 'opacity-70 cursor-not-allowed' 
+                                                : 'hover:from-pink-700 hover:to-rose-700 transform hover:scale-105'
+                                        }`}
+                                    >
+                                        {isJoining ? (
+                                            <span className="flex items-center justify-center">
+                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Joining...
+                                            </span>
+                                        ) : (
+                                            'Join Game'
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
